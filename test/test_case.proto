@@ -1,0 +1,71 @@
+syntax = "proto3";
+
+package shm;
+
+message TestCaseCopy_pb {
+	Header header = 1;
+
+    message Header{
+		int32 subCount = 1;
+		int32 pubCount = 2;
+		int32 msgCount = 3;
+		int32 payloadSize = 4;
+	}
+
+	Metrics metrics = 2;
+	RawData raw = 3;
+}
+
+message TestCaseZeroCopy_pb {
+    Header header = 1;
+
+    message Header{
+    	int32 subCount = 1;
+    	int32 pubCount = 2;
+   		int32 msgCount = 3;
+   		int32 calculationTime = 4;
+   	}
+
+    Metrics metrics = 2;
+    RawData raw = 3;
+}
+
+message Metrics{
+	int64 totalDuration = 1;
+	int64 totalLockTime = 2;
+	int64 totalSubcriberLockTime = 3;
+
+	float avgIterationDuration = 4;
+    int64 maxIterationDuration = 5;
+    int64 minIterationDuration = 6;
+
+	float avgIterationLockTime = 7;
+	int64 maxIterationLockTime = 8;
+	int64 minIterationLockTime = 9;
+	
+    float avgSubscriberIterationLockTime = 10;
+	int64 maxSubscriberIterationLockTime = 11;
+	int64 minSubscriberIterationLockTime = 12;
+
+	float avgPubLatency = 13;
+	float maxPubLatency = 14;
+	float minPubLatency = 15;
+
+	repeated float avgSubLatencies = 16;
+	repeated int64 maxSubLatencies = 17;
+	repeated int64 minSubLatencies = 18;
+}
+
+message RawData{
+	repeated int64 pubBeforeAccessTimes = 1;
+	repeated int64 pubAfterAccessTimes = 2;
+	repeated int64 pubAfterReleaseTimes = 3;
+
+	repeated SubTimes subBeforeAccessTimes = 4;
+	repeated SubTimes subAfterAccessTimes = 5;
+	repeated SubTimes subAfterReleaseTimes = 6;
+
+	message SubTimes {
+        repeated int64 times = 1;
+    }
+}

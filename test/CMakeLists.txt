@@ -11,4 +11,7 @@ target_sources(test
     test_case_zero_copy.h
 )
 
-target_link_libraries(test PRIVATE shm)
+protobuf_target_cpp(test ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/test_case.proto)
+
+target_link_libraries(test PRIVATE shm protobuf::libprotobuf)
+

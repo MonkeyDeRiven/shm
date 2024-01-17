@@ -1,5 +1,6 @@
 #pragma once
 #include "test_case.h"
+#include "test_case.pb.h"
 #include <memory>
 #include <string> 
 
@@ -12,6 +13,9 @@ public:
 	int getCalculationTime();
 
 	std::shared_ptr<std::string> createPayload(int payloadSize) override;
+
+	shm::TestCaseZeroCopy_pb getPbTestCaseMessage(bool withRawData);
+
 private:
 	int calculationTime;
 };
