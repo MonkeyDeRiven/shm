@@ -62,311 +62,311 @@ bool contentAvailable = false;
 
 void readerDone()
 {
-    std::unique_lock <std::mutex> rdLock(readerDoneLock);
-    readerDoneCount++;
-    if (readerDoneCount == totalReaderCount) {
-        contentAvailable = false;
-        readerDoneCount = 0;
-        readerWriterSync.notify_all();
-    }
+	std::unique_lock <std::mutex> rdLock(readerDoneLock);
+	readerDoneCount++;
+	if (readerDoneCount == totalReaderCount) {
+		contentAvailable = false;
+		readerDoneCount = 0;
+		readerWriterSync.notify_all();
+	}
 }
 
 int main()
 {
-    std::string testResultFileName = "eCAL_base_lock_test";
+	std::string testResultFileName = "eCAL_base_lock_test";
 
-    runTests(testResultFileName);
+	runTests(testResultFileName);
 
-    return 0;
+	return 0;
 }
 
 std::vector<TestCaseZeroCopy> createTestCasesZeroCopy()
 {
-    auto testCases = std::vector<TestCaseZeroCopy>();
-    
-    //one sub
-    testCases.push_back(TestCaseZeroCopy(1, 1, 10, 1));
-    testCases.push_back(TestCaseZeroCopy(1, 1, 10, 10));
-    testCases.push_back(TestCaseZeroCopy(1, 1, 10, 100));
-    testCases.push_back(TestCaseZeroCopy(1, 1, 10, 1000));
+	auto testCases = std::vector<TestCaseZeroCopy>();
 
-    //three subs
-    //testCases.push_back(TestCaseZeroCopy(3, 1, 10, 1));
-    //testCases.push_back(TestCaseZeroCopy(3, 1, 10, 10));
-    //testCases.push_back(TestCaseZeroCopy(3, 1, 10, 100));
-    //testCases.push_back(TestCaseZeroCopy(3, 1, 10, 1000));
+	//one sub
+	testCases.push_back(TestCaseZeroCopy(1, 1, 10, 1));
+	testCases.push_back(TestCaseZeroCopy(1, 1, 10, 10));
+	testCases.push_back(TestCaseZeroCopy(1, 1, 10, 100));
+	testCases.push_back(TestCaseZeroCopy(1, 1, 10, 1000));
 
-    //five subs
-    //testCases.push_back(TestCaseZeroCopy(5, 1, 10, 1));
-    //testCases.push_back(TestCaseZeroCopy(5, 1, 10, 10));
-    //testCases.push_back(TestCaseZeroCopy(5, 1, 10, 100));
-    //testCases.push_back(TestCaseZeroCopy(5, 1, 10, 1000));
+	//three subs
+	//testCases.push_back(TestCaseZeroCopy(3, 1, 10, 1));
+	//testCases.push_back(TestCaseZeroCopy(3, 1, 10, 10));
+	//testCases.push_back(TestCaseZeroCopy(3, 1, 10, 100));
+	//testCases.push_back(TestCaseZeroCopy(3, 1, 10, 1000));
 
-    //ten subs
-    //testCases.push_back(TestCaseZeroCopy(10, 1, 10, 1));
-    //testCases.push_back(TestCaseZeroCopy(10, 1, 10, 10));
-    //testCases.push_back(TestCaseZeroCopy(10, 1, 10, 100));
-    //testCases.push_back(TestCaseZeroCopy(10, 1, 10, 1000));
+	//five subs
+	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 1));
+	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 10));
+	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 100));
+	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 1000));
 
-    return testCases;
+	//ten subs
+	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 1));
+	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 10));
+	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 100));
+	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 1000));
+
+	return testCases;
 }
 
-std::vector<TestCaseCopy> createTestCasesCopy() 
+std::vector<TestCaseCopy> createTestCasesCopy()
 {
-    auto testCases = std::vector<TestCaseCopy>();
-    //one sub
-    testCases.push_back(TestCaseCopy(1, 1, 10, 1));
-    testCases.push_back(TestCaseCopy(1, 1, 10, 1000));
-    testCases.push_back(TestCaseCopy(1, 1, 10, 1000000));
-    testCases.push_back(TestCaseCopy(1, 1, 10, 1000000000));
+	auto testCases = std::vector<TestCaseCopy>();
+	//one sub
+	testCases.push_back(TestCaseCopy(1, 1, 10, 1));
+	testCases.push_back(TestCaseCopy(1, 1, 10, 1000));
+	testCases.push_back(TestCaseCopy(1, 1, 10, 1000000));
+	testCases.push_back(TestCaseCopy(1, 1, 10, 1000000000));
 
-    //three subs
-    //testCases.push_back(TestCaseCopy(3, 1, 10, 1));
-    //testCases.push_back(TestCaseCopy(3, 1, 10, 1000));
-    //testCases.push_back(TestCaseCopy(3, 1, 10, 1000000));
-    //testCases.push_back(TestCaseCopy(3, 1, 10, 1000000000));
+	//three subs
+	//testCases.push_back(TestCaseCopy(3, 1, 10, 1));
+	//testCases.push_back(TestCaseCopy(3, 1, 10, 1000));
+	//testCases.push_back(TestCaseCopy(3, 1, 10, 1000000));
+	//testCases.push_back(TestCaseCopy(3, 1, 10, 1000000000));
 
-    //five subs
-    //testCases.push_back(TestCaseCopy(5, 1, 10, 1));
-    //testCases.push_back(TestCaseCopy(5, 1, 10, 1000));
-    //testCases.push_back(TestCaseCopy(5, 1, 10, 1000000));
-    //testCases.push_back(TestCaseCopy(5, 1, 10, 1000000000));
+	//five subs
+	//testCases.push_back(TestCaseCopy(5, 1, 10, 1));
+	//testCases.push_back(TestCaseCopy(5, 1, 10, 1000));
+	//testCases.push_back(TestCaseCopy(5, 1, 10, 1000000));
+	//testCases.push_back(TestCaseCopy(5, 1, 10, 1000000000));
 
-    //ten subs
-    //testCases.push_back(TestCaseCopy(10, 1, 10, 1));
-    //testCases.push_back(TestCaseCopy(10, 1, 10, 1000));
-    //testCases.push_back(TestCaseCopy(10, 1, 10, 1000000));
-    //testCases.push_back(TestCaseCopy(10, 1, 10, 1000000000));
-    
+	//ten subs
+	//testCases.push_back(TestCaseCopy(10, 1, 10, 1));
+	//testCases.push_back(TestCaseCopy(10, 1, 10, 1000));
+	//testCases.push_back(TestCaseCopy(10, 1, 10, 1000000));
+	//testCases.push_back(TestCaseCopy(10, 1, 10, 1000000000));
 
-    return testCases;
+
+	return testCases;
 }
 
 
 void saveTestResults(shm::Test_pb& data, std::string fileName)
 {
-    std::ofstream file;
-    file.open(fileName, std::ios::binary | std::ios::out);
+	std::ofstream file;
+	file.open(fileName, std::ios::binary | std::ios::out);
 
-    std::cout << "save results..." << std::endl;
+	std::cout << "save results..." << std::endl;
 
-    if(file.is_open()){
-        file << data.SerializeAsString();
-        file.close();
-        std::cout << "results saved!" << std::endl << std::endl;
-    }
-    else {
-        std::cout << "ERROR: could not save test results!" << std::endl << std::endl;
-    }
+	if (file.is_open()) {
+		file << data.SerializeAsString();
+		file.close();
+		std::cout << "results saved!" << std::endl << std::endl;
+	}
+	else {
+		std::cout << "ERROR: could not save test results!" << std::endl << std::endl;
+	}
 }
 
 void runTests(std::string fileName) {
-    //clear file content
-    std::ofstream file;
-    file.open(fileName, std::ofstream::trunc);
-    file.close();
+	//clear file content
+	std::ofstream file;
+	file.open(fileName, std::ofstream::trunc);
+	file.close();
 
-    std::vector<TestCaseZeroCopy> testCasesZeroCopy = createTestCasesZeroCopy();
-    std::vector<TestCaseCopy> testCasesCopy = createTestCasesCopy();
+	std::vector<TestCaseZeroCopy> testCasesZeroCopy = createTestCasesZeroCopy();
+	std::vector<TestCaseCopy> testCasesCopy = createTestCasesCopy();
 
-    runTestsZeroCopy(testCasesZeroCopy, fileName);
-    runTestsCopy(testCasesCopy, fileName);
+	runTestsZeroCopy(testCasesZeroCopy, fileName);
+	runTestsCopy(testCasesCopy, fileName);
 
-    shm::Test_pb message;
-    for (int i = 0; i < testCasesZeroCopy.size(); i++) {
-        *message.add_zerocopycases() = testCasesZeroCopy[i].getPbTestCaseMessage(false);
-    }
-    for (int i = 0; i < testCasesCopy.size(); i++) {
-        *message.add_copycases() = testCasesCopy[i].getPbTestCaseMessage(false);
-    }
+	shm::Test_pb message;
+	for (int i = 0; i < testCasesZeroCopy.size(); i++) {
+		*message.add_zerocopycases() = testCasesZeroCopy[i].getPbTestCaseMessage(false);
+	}
+	for (int i = 0; i < testCasesCopy.size(); i++) {
+		*message.add_copycases() = testCasesCopy[i].getPbTestCaseMessage(false);
+	}
 
-    saveTestResults(message, fileName);
-   
+	saveTestResults(message, fileName);
+
 }
 
 void runTestsZeroCopy(std::vector<TestCaseZeroCopy>& testCases, std::string fileName)
 {
-    std::ofstream file;
+	std::ofstream file;
 
-    std::cout << "run zero copy tests" << std::endl << std::endl;
+	std::cout << "run zero copy tests" << std::endl << std::endl;
 
-    for (int i = 0; i < testCases.size(); i++) {
+	for (int i = 0; i < testCases.size(); i++) {
 
-        TestCaseZeroCopy& testCase = testCases[i];
+		TestCaseZeroCopy& testCase = testCases[i];
 
-        std::cout << "test " << i + 1 << " in progress..." << std::endl;
-        //Create memoryFile
-        eCAL::CMemoryFile memoryFile;
-        //reserve 50 more bytes in case a header is written
-        memoryFile.Create("TestZeroCopy", true, testCase.getPayloadSize());
+		std::cout << "test " << i + 1 << " in progress..." << std::endl;
+		//Create memoryFile
+		eCAL::CMemoryFile memoryFile;
+		//reserve 50 more bytes in case a header is written
+		memoryFile.Create("TestZeroCopy", true, testCase.getPayloadSize());
 
-        //needed for reader writer coordination
-        totalReaderCount = testCase.getSubCount();
-        std::vector<std::thread> workers;
+		//needed for reader writer coordination
+		totalReaderCount = testCase.getSubCount();
+		std::vector<std::thread> workers;
 
-        //add writer as first element
-        workers.push_back(createWriter(testCase, memoryFile));
+		//add writer as first element
+		workers.push_back(createWriter(testCase, memoryFile));
 
-        //add reader
-        for (int i = 0; i < testCase.getSubCount(); i++) {
-            workers.push_back(createReader(testCase, memoryFile, i));
-        }
+		//add reader
+		for (int i = 0; i < testCase.getSubCount(); i++) {
+			workers.push_back(createReader(testCase, memoryFile, i));
+		}
 
-        //wait for test to finish
-        for (int i = 0; i < workers.size(); i++) {
-            workers[i].join();
-        }
+		//wait for test to finish
+		for (int i = 0; i < workers.size(); i++) {
+			workers[i].join();
+		}
 
-        std::cout << "test completed" << std::endl << std::endl;
-        testCase.calculateMetrics();
-        writerDoneCount = 0;
-    }
+		std::cout << "test completed" << std::endl << std::endl;
+		testCase.calculateMetrics();
+		writerDoneCount = 0;
+	}
 }
 
 void runTestsCopy(std::vector<TestCaseCopy>& testCases, std::string fileName)
 {
-    std::cout << "run test copy" << std::endl << std::endl;
+	std::cout << "run test copy" << std::endl << std::endl;
 
-    for (int i = 0; i < testCases.size(); i++) {
-        TestCaseCopy& testCase = testCases[i];
+	for (int i = 0; i < testCases.size(); i++) {
+		TestCaseCopy& testCase = testCases[i];
 
-        std::cout << "Test " << i+1 << " in progress..." << std::endl;
+		std::cout << "Test " << i + 1 << " in progress..." << std::endl;
 
-        //needed for reader writer coordination
-        totalReaderCount = testCase.getSubCount();
-        std::vector<std::thread> workers;
+		//needed for reader writer coordination
+		totalReaderCount = testCase.getSubCount();
+		std::vector<std::thread> workers;
 
-        //create memory file
-        eCAL::CMemoryFile memoryFile;
-        memoryFile.Create("TestCopy", true, testCase.getPayloadSize());
+		//create memory file
+		eCAL::CMemoryFile memoryFile;
+		memoryFile.Create("TestCopy", true, testCase.getPayloadSize());
 
-        //add writer as first element
-        workers.push_back(createWriter(testCase, memoryFile));
+		//add writer as first element
+		workers.push_back(createWriter(testCase, memoryFile));
 
-        //add readers
-        for (int i = 0; i < testCase.getSubCount(); i++) {
-            workers.push_back(createReader(testCase, memoryFile, i));
-        }
+		//add readers
+		for (int i = 0; i < testCase.getSubCount(); i++) {
+			workers.push_back(createReader(testCase, memoryFile, i));
+		}
 
-        //wait for test to finish
-        for (int i = 0; i < workers.size(); i++) {
-            workers[i].join();
-        }
-        std::cout << "test completed" << std::endl << std::endl;
-        testCase.calculateMetrics();
-        writerDoneCount = 0;
-    }
+		//wait for test to finish
+		for (int i = 0; i < workers.size(); i++) {
+			workers[i].join();
+		}
+		std::cout << "test completed" << std::endl << std::endl;
+		testCase.calculateMetrics();
+		writerDoneCount = 0;
+	}
 }
 
 template<typename T>
 std::thread createWriter(T& testCase, eCAL::CMemoryFile& memoryFile) {
-    return std::thread([&]() {
-        writerTask(testCase, memoryFile);
-        });
+	return std::thread([&]() {
+		writerTask(testCase, memoryFile);
+		});
 }
 
 std::thread createReader(TestCase& testCase, eCAL::CMemoryFile& memoryFile, int timesIndex)
 {
-    if (dynamic_cast<TestCaseZeroCopy*>(&testCase) != nullptr) {
-        return std::thread([&testCase, &memoryFile, timesIndex]() {
-            readerTaskZeroCopy(dynamic_cast<TestCaseZeroCopy&>(testCase), memoryFile, timesIndex);
-            });
-    }
-    return std::thread([&testCase, &memoryFile, timesIndex]() {
-        readerTaskCopy(dynamic_cast<TestCaseCopy&>(testCase), memoryFile, timesIndex);
-        });
+	if (dynamic_cast<TestCaseZeroCopy*>(&testCase) != nullptr) {
+		return std::thread([&testCase, &memoryFile, timesIndex]() {
+			readerTaskZeroCopy(dynamic_cast<TestCaseZeroCopy&>(testCase), memoryFile, timesIndex);
+			});
+	}
+	return std::thread([&testCase, &memoryFile, timesIndex]() {
+		readerTaskCopy(dynamic_cast<TestCaseCopy&>(testCase), memoryFile, timesIndex);
+		});
 }
 
 void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
 {
-    auto beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
-    auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
-    auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
-    for (int i = 0; i < testCase.getMsgCount(); i++) {
-        if (contentAvailable == false) {
-            //blocks the reader till content is written
-            std::unique_lock<std::mutex> w_lock(readerWriterLock);
+	auto beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
+	auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
+	auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
+	for (int i = 0; i < testCase.getMsgCount(); i++) {
+		if (contentAvailable == false) {
+			//blocks the reader till content is written
+			std::unique_lock<std::mutex> w_lock(readerWriterLock);
 
-            beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
-            while (!memoryFile.GetWriteAccess(WRITE_ACCESS_TIMEOUT)) {}
-            afterAccess = std::chrono::steady_clock::now().time_since_epoch();
-            
-            memoryFile.WriteBuffer(testCase.getPayload().get()->data(), testCase.getPayloadSize(), 0);
-            memoryFile.ReleaseWriteAccess();
-            afterRelease = std::chrono::steady_clock::now().time_since_epoch();
-            contentAvailable = true;
-            writerDoneCount++;
+			beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
+			while (!memoryFile.GetWriteAccess(WRITE_ACCESS_TIMEOUT)) {}
+			afterAccess = std::chrono::steady_clock::now().time_since_epoch();
 
-            //allows readers to read written content
-            readerWriterSync.notify_all();
+			memoryFile.WriteBuffer(testCase.getPayload().get()->data(), testCase.getPayloadSize(), 0);
+			memoryFile.ReleaseWriteAccess();
+			afterRelease = std::chrono::steady_clock::now().time_since_epoch();
+			contentAvailable = true;
+			writerDoneCount++;
 
-            //process taken time while readers can read
-            testCase.pushToPubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count());
-            testCase.pushToPubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count());
-            testCase.pushToPubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count());
-            readerWriterSync.wait(w_lock, [] { return !contentAvailable; });
-        }
-    }
+			//allows readers to read written content
+			readerWriterSync.notify_all();
+
+			//process taken time while readers can read
+			testCase.pushToPubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count());
+			testCase.pushToPubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count());
+			testCase.pushToPubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count());
+			readerWriterSync.wait(w_lock, [] { return !contentAvailable; });
+		}
+	}
 }
 
 void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFile, int timesIndex)
 {
-    std::vector<std::string> _buf(POINTER_SIZE);
-    auto beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
-    auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
-    auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
-    for (int i = 0; i < testCase.getMsgCount(); i++) {
-        //wait till content is available
-        std::unique_lock<std::mutex> r_lock(readerWriterLock);
-        readerWriterSync.wait(r_lock, [=] { return writerDoneCount == i+1; });
-        //r_lock.unlock();
+	std::vector<std::string> _buf(POINTER_SIZE);
+	auto beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
+	auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
+	auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
+	for (int i = 0; i < testCase.getMsgCount(); i++) {
+		//wait till content is available
+		std::unique_lock<std::mutex> r_lock(readerWriterLock);
+		readerWriterSync.wait(r_lock, [=] { return writerDoneCount == i + 1; });
+		r_lock.unlock();
 
-        //aquire read access, could already be aquired by different reader
-        beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
-        while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)) {}
-        afterAccess = std::chrono::steady_clock::now().time_since_epoch();
-        
-        memoryFile.Read(_buf.data(), testCase.getPayloadSize(), 0);
+		//aquire read access, could already be aquired by different reader
+		beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
+		while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)) {}
+		afterAccess = std::chrono::steady_clock::now().time_since_epoch();
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(testCase.getCalculationTime()));
-        
-        memoryFile.ReleaseReadAccess();
-        afterRelease = std::chrono::steady_clock::now().time_since_epoch();
-        readerDone();
+		memoryFile.Read(_buf.data(), testCase.getPayloadSize(), 0);
 
-        testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count(), timesIndex);
-        testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count(), timesIndex);
-        testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count(), timesIndex);
-    }
+		std::this_thread::sleep_for(std::chrono::milliseconds(testCase.getCalculationTime()));
+
+		memoryFile.ReleaseReadAccess();
+		afterRelease = std::chrono::steady_clock::now().time_since_epoch();
+		readerDone();
+
+		testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count(), timesIndex);
+		testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count(), timesIndex);
+		testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count(), timesIndex);
+	}
 }
 
-void readerTaskCopy(TestCaseCopy& testCase, eCAL::CMemoryFile& memoryFile, int timesIndex) 
+void readerTaskCopy(TestCaseCopy& testCase, eCAL::CMemoryFile& memoryFile, int timesIndex)
 {
-    std::vector<char> _buf = std::vector<char>(testCase.getPayloadSize());
-    auto beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
-    auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
-    auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
-    for (int i = 0; i < testCase.getMsgCount(); i++) {
-        //wait till content is available
-        std::unique_lock<std::mutex> r_lock(readerWriterLock);
-        readerWriterSync.wait(r_lock, [=]() { return writerDoneCount == i+1; });
+	std::vector<char> _buf = std::vector<char>(testCase.getPayloadSize());
+	auto beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
+	auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
+	auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
+	for (int i = 0; i < testCase.getMsgCount(); i++) {
+		//wait till content is available
+		std::unique_lock<std::mutex> r_lock(readerWriterLock);
+		readerWriterSync.wait(r_lock, [=]() { return writerDoneCount == i + 1; });
 
-        //unlock so other readers are not blocked
-        r_lock.unlock();
+		//unlock so other readers are not blocked
+		r_lock.unlock();
 
-        //aquire read access, could already be aquired by different reader
-        while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)){}
-        afterAccess = std::chrono::steady_clock::now().time_since_epoch();
+		//aquire read access, could already be aquired by different reader
+		while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)) {}
+		afterAccess = std::chrono::steady_clock::now().time_since_epoch();
 
-        memoryFile.Read(_buf.data(), testCase.getPayloadSize(), 0);
-        memoryFile.ReleaseReadAccess();
+		memoryFile.Read(_buf.data(), testCase.getPayloadSize(), 0);
+		memoryFile.ReleaseReadAccess();
 
-        afterRelease = std::chrono::steady_clock::now().time_since_epoch();
+		afterRelease = std::chrono::steady_clock::now().time_since_epoch();
 
-        readerDone();
+		readerDone();
 
-        testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count(), timesIndex);
-        testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count(), timesIndex);
-        testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count(), timesIndex);
-    }
+		testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count(), timesIndex);
+		testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count(), timesIndex);
+		testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count(), timesIndex);
+	}
 }
