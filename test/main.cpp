@@ -4,6 +4,7 @@
 #include "test_case.h"
 #include "test_case_copy.h"
 #include "test_case_zero_copy.h"
+#include "test_case.pb.h"
 
 #include <chrono>
 #include <iostream>
@@ -23,7 +24,7 @@ const int WRITE_ACCESS_TIMEOUT = 100;
 const int READ_ACCESS_TIMEOUT = 100;
 const int WRITE_ADDESS_TIMEOUT = 10;
 
-const bool SEND_RAW_DATA = false;
+const bool SEND_RAW_DATA = true;
 
 //Create test cases list
 std::vector<TestCaseZeroCopy> createTestCasesZeroCopy();
@@ -31,14 +32,14 @@ std::vector<TestCaseCopy> createTestCasesCopy();
 
 //run tests
 void runTests(std::string fileName);
-void runTestsZeroCopy(std::string fileName);
-void runTestsCopy(std::string fileName);
+void runTestsZeroCopy(std::vector<TestCaseZeroCopy>& testCases, std::string fileName);
+void runTestsCopy(std::vector<TestCaseCopy>& testCases, std::string fileName);
 
 //reader-writer thread creation
 template<typename T>
 std::thread createWriter(T& testCase, eCAL::CMemoryFile& memoryFile);
 
-std::thread createReader(TestCase&, eCAL::CMemoryFile& memoryFile, int timesIndex);
+std::thread createReader(TestCase& testCase, eCAL::CMemoryFile& memoryFile, int timesIndex);
 
 //reader-writer tasks
 void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile);
@@ -46,7 +47,7 @@ void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFil
 void readerTaskCopy(TestCaseCopy& testCase, eCAL::CMemoryFile& mermoryFile, int timesIndex);
 
 //time measurement
-void saveTestResults(TestCase& testCase, std::string fileName);
+void saveTestResults(shm::Test_pb& testCase, std::string fileName);
 
 //thread sync
 std::condition_variable readerWriterSync;
@@ -142,24 +143,15 @@ std::vector<TestCaseCopy> createTestCasesCopy()
 }
 
 
-
-void saveTestResults(TestCase& testCase, std::string fileName)
+void saveTestResults(shm::Test_pb& data, std::string fileName)
 {
     std::ofstream file;
-    file.open(fileName, std::ios::app);
+    file.open(fileName, std::ios::binary | std::ios::out);
 
     std::cout << "save results..." << std::endl;
 
     if(file.is_open()){
-        std::string data;
-        if (dynamic_cast<TestCaseCopy*>(&testCase) != nullptr) {
-            data = dynamic_cast<TestCaseCopy&>(testCase).getPbTestCaseMessage(SEND_RAW_DATA).SerializeAsString();
-        }
-        else {
-            data = dynamic_cast<TestCaseZeroCopy&>(testCase).getPbTestCaseMessage(SEND_RAW_DATA).SerializeAsString();
-        }
-        file << data.size() << "\n";
-        file << data;
+        file << data.SerializeAsString();
         file.close();
         std::cout << "results saved!" << std::endl << std::endl;
     }
@@ -174,33 +166,33 @@ void runTests(std::string fileName) {
     file.open(fileName, std::ofstream::trunc);
     file.close();
 
-    runTestsZeroCopy(fileName);
-    runTestsCopy(fileName);
+    std::vector<TestCaseZeroCopy> testCasesZeroCopy = createTestCasesZeroCopy();
+    std::vector<TestCaseCopy> testCasesCopy = createTestCasesCopy();
+
+    runTestsZeroCopy(testCasesZeroCopy, fileName);
+    runTestsCopy(testCasesCopy, fileName);
+
+    shm::Test_pb message;
+    for (int i = 0; i < testCasesZeroCopy.size(); i++) {
+        *message.add_zerocopycases() = testCasesZeroCopy[i].getPbTestCaseMessage(false);
+    }
+    for (int i = 0; i < testCasesCopy.size(); i++) {
+        *message.add_copycases() = testCasesCopy[i].getPbTestCaseMessage(false);
+    }
+
+    saveTestResults(message, fileName);
+   
 }
 
-void runTestsZeroCopy(std::string fileName)
+void runTestsZeroCopy(std::vector<TestCaseZeroCopy>& testCases, std::string fileName)
 {
-    std::vector<TestCaseZeroCopy> testCases = createTestCasesZeroCopy();
-
     std::ofstream file;
-
-    file.open(fileName, std::ios::app);
-    
-    if (file.is_open()) {
-        file << "zerocopy\n";
-        file.close();
-    }
-    else {
-        std::cout << "could not open file, please try to resolve this issue!";
-        return;
-    }
-
 
     std::cout << "run zero copy tests" << std::endl << std::endl;
 
     for (int i = 0; i < testCases.size(); i++) {
 
-        TestCaseZeroCopy testCase = testCases[i];
+        TestCaseZeroCopy& testCase = testCases[i];
 
         std::cout << "test " << i + 1 << " in progress..." << std::endl;
         //Create memoryFile
@@ -225,33 +217,18 @@ void runTestsZeroCopy(std::string fileName)
             workers[i].join();
         }
 
-        std::cout << "test completed" << std::endl;
+        std::cout << "test completed" << std::endl << std::endl;
         testCase.calculateMetrics();
-        saveTestResults(testCase, fileName);
         writerDoneCount = 0;
     }
 }
 
-void runTestsCopy(std::string fileName)
+void runTestsCopy(std::vector<TestCaseCopy>& testCases, std::string fileName)
 {
-    std::vector<TestCaseCopy> testCases = createTestCasesCopy();
-
-    std::ofstream file;
-    file.open(fileName, std::ios::app);
-
-    if (file.is_open()) {
-        file << "copy\n";
-        file.close();
-    }
-    else {
-        std::cout << "could not open file, please try to resolve this issue!";
-        return;
-    }
-
     std::cout << "run test copy" << std::endl << std::endl;
 
     for (int i = 0; i < testCases.size(); i++) {
-        TestCaseCopy testCase = testCases[i];
+        TestCaseCopy& testCase = testCases[i];
 
         std::cout << "Test " << i+1 << " in progress..." << std::endl;
 
@@ -275,9 +252,8 @@ void runTestsCopy(std::string fileName)
         for (int i = 0; i < workers.size(); i++) {
             workers[i].join();
         }
-        std::cout << "test completed" << std::endl;
+        std::cout << "test completed" << std::endl << std::endl;
         testCase.calculateMetrics();
-        saveTestResults(testCase, fileName);
         writerDoneCount = 0;
     }
 }
@@ -311,6 +287,7 @@ void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
             //blocks the reader till content is written
             std::unique_lock<std::mutex> w_lock(readerWriterLock);
 
+            beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
             while (!memoryFile.GetWriteAccess(WRITE_ACCESS_TIMEOUT)) {}
             afterAccess = std::chrono::steady_clock::now().time_since_epoch();
             
@@ -345,6 +322,7 @@ void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFil
         //r_lock.unlock();
 
         //aquire read access, could already be aquired by different reader
+        beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
         while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)) {}
         afterAccess = std::chrono::steady_clock::now().time_since_epoch();
         

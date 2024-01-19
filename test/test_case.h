@@ -23,6 +23,9 @@ public:
 	int getPayloadSize();
 	std::shared_ptr<std::string> getPayload();
 
+	//Transforms the captured times, so that PubBeforeAccessTime[0] is the begin of the measurement and equals 0
+	void adjustTimeFrame();
+
 	//metric methods
 	void calculateMetrics();
 
@@ -43,9 +46,6 @@ public:
 	//metrics helper methods
 	long long getMaxSubAfterReleaseTimeForIteration(int iteration);
 	long long getMinSubAfterAccessTimeForIteration(int iteration);
-
-	//protobuf
-
 
 protected:
 	int subCount;

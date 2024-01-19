@@ -13,7 +13,6 @@ std::shared_ptr<std::string> TestCaseCopy::createPayload(int payloadSize)
 
 shm::TestCaseCopy_pb TestCaseCopy::getPbTestCaseMessage(bool rawData)
 {
-	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	shm::TestCaseCopy_pb message;
 
 	auto header = message.mutable_header();

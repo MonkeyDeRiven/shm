@@ -2,6 +2,11 @@
 #include <algorithm>
 #include <numeric>
 
+
+//helper functions to adjust time frame
+void correctSubTimes(std::vector<std::vector<long long>>& times, long long startTime);
+void correctPubTimes(std::vector<long long>& times, long long startTime);
+
 TestCase::TestCase(int subCount, int pubCount, int msgCount)
 {
 	this->subCount = subCount;
@@ -38,7 +43,7 @@ void TestCase::pushToPubAfterReleaseTimes(long long time)
 
 void TestCase::pushToSubBeforeAccessTimes(long long time, int index)
 {
-	this->subBeforeAccessTimes[index].push_back(index);
+	this->subBeforeAccessTimes[index].push_back(time);
 }
 
 void TestCase::pushToSubAfterAccessTimes(long long time, int index)
@@ -74,10 +79,41 @@ std::shared_ptr<std::string> TestCase::getPayload() {
 	return this->payload;
 }
 
+void TestCase::adjustTimeFrame()
+{
+	long long startTime = this->pubBeforeAccessTimes[0];
+	this->pubBeforeAccessTimes[0] = 0;
+	for (int i = 1; i < this->pubBeforeAccessTimes.size(); i++) {
+		this->pubBeforeAccessTimes[i] = this->pubBeforeAccessTimes[i] - startTime;
+	}
+	correctPubTimes(this->pubAfterAccessTimes, startTime);
+	correctPubTimes(this->pubAfterReleaseTimes, startTime);
+	correctSubTimes(this->subBeforeAccessTimes, startTime);
+	correctSubTimes(this->subAfterAccessTimes, startTime);
+	correctSubTimes(this->subAfterReleaseTimes, startTime);
+}
+
+
+void correctPubTimes(std::vector<long long>& times, long long startTime) {
+	for (int i = 0; i < times.size(); i++) {
+		times[i] = times[i] - startTime;
+	}
+}
+
+void correctSubTimes(std::vector<std::vector<long long>>& times, long long startTime) {
+	for (int i = 0; i < times.size(); i++) {
+		for (int j = 0; j < times[i].size(); j++) {
+			times[i][j] = times[i][j] - startTime;
+		}
+	}
+}
+
 //metric methods
 
 void TestCase::calculateMetrics()
 {
+	adjustTimeFrame();
+
 	this->subscriberLockTimes = getSubscriberLockTimes();
 	this->iterationLockTimes = getIterationLockTimes();
 	this->iterationDurations = getIterationDurations();
