@@ -32,6 +32,8 @@
 #include <algorithm>
 #include <random>
 
+#include <iostream>
+
 #define SIZEOF_PARTIAL_STRUCT(_STRUCT_NAME_, _FIELD_NAME_) (reinterpret_cast<std::size_t>(&(reinterpret_cast<_STRUCT_NAME_*>(0)->_FIELD_NAME_)) + sizeof(_STRUCT_NAME_::_FIELD_NAME_)) //NOLINT
 
 namespace eCAL
@@ -40,11 +42,12 @@ namespace eCAL
   // Memory file handling class
   /////////////////////////////////////////////////////////////////////////////////
 
-  CMemoryFile::CMemoryFile() :
+  CMemoryFile::CMemoryFile(lock_type lock_choice) :
     m_created(false),
     m_auto_sanitizing(false),
     m_payload_initialized(false),
-    m_access_state(access_state::closed)
+    m_access_state(access_state::closed),
+    m_lock_type(lock_choice)  
   {
   }
 
@@ -96,12 +99,23 @@ namespace eCAL
 
     // create mutex
     // for performance reasons only apply consistency check if it is explicitly set
-    if(!m_memfile_mutex.Create(name_, m_auto_sanitizing))
-    {
+    if (m_lock_type == lock_type::mutex) {
+      if (!m_memfile_mutex.Create(name_, m_auto_sanitizing))
+      {
 #ifndef NDEBUG
-      printf("Could not create memory file mutex: %s.\n", name_);
+        printf("Could not create memory file mutex: %s.\n", name_);
 #endif
-      return(false);
+        return(false);
+      }
+    }
+    else if (m_lock_type == lock_type::rw_lock) {
+      if (!m_memfile_rw_lock.Create(name_))
+      {
+#ifndef NDEBUG
+        printf("Could not create memory file rw_lock: %s.\n", name_);
+#endif
+        return(false);
+      }
     }
 
     if (create_)
@@ -109,16 +123,30 @@ namespace eCAL
       // create header
       m_header.max_data_size = (unsigned long)len_;
 
+      bool is_locked = false;
+
       // lock mutex
+      if (m_lock_type == lock_type::mutex) {
+        if (m_memfile_mutex.Lock(PUB_MEMFILE_CREATE_TO))
+          is_locked = true;
+      }
+
+      // lock rw-lock
+      if (m_lock_type == lock_type::rw_lock) {
+        if (m_memfile_rw_lock.Lock(PUB_MEMFILE_CREATE_TO))
+          is_locked = true;
+      }
+
       // for performance reasons only apply consistency check if it is explicitly set
-      if(m_memfile_mutex.Lock(PUB_MEMFILE_CREATE_TO))
+      if(is_locked)
       {
         if (m_memfile_info.mem_address != nullptr)
         {
           SInternalHeader* header = reinterpret_cast<SInternalHeader*>(m_memfile_info.mem_address);
 
           // reset header if memfile does not exist or rather is not initialized as well as if lock state is inconsistent
-          if (!m_memfile_info.exists || header->int_hdr_size == 0 || (m_auto_sanitizing && m_memfile_mutex.WasRecovered()))
+          // removed recover checks since they are not used at the moment anyways
+          if (!m_memfile_info.exists || header->int_hdr_size == 0 /* || (m_auto_sanitizing && m_memfile_mutex.WasRecovered()) */ )
             *header = m_header;
           else
           {
@@ -128,15 +156,32 @@ namespace eCAL
         }
 
         // unlock mutex
-        m_memfile_mutex.Unlock();
+        if (m_lock_type == lock_type::mutex)
+          m_memfile_mutex.Unlock();
 
+        // unlock rw-lock
+        if (m_lock_type == lock_type::rw_lock)
+          m_memfile_rw_lock.Unlock();
       }
     }
     else
     {
+      bool is_locked = false;
+
       // lock mutex
+      if (m_lock_type == lock_type::mutex) {
+        if (m_memfile_mutex.Lock(PUB_MEMFILE_CREATE_TO))
+          is_locked = true;
+      }
+
+      // lock rw-lock
+      if (m_lock_type == lock_type::rw_lock) {
+        if (m_memfile_rw_lock.Lock(PUB_MEMFILE_CREATE_TO))
+          is_locked = true;
+      }
+
       // consistency check cannot be performed on read-only memfiles
-      if(m_memfile_mutex.Lock(PUB_MEMFILE_CREATE_TO))
+      if(is_locked)
       {
         // read internal header size of memory file
         const auto header_size = static_cast<SInternalHeader*>(m_memfile_info.mem_address)->int_hdr_size;
@@ -146,7 +191,12 @@ namespace eCAL
         memcpy(&m_header, m_memfile_info.mem_address, std::min(sizeof(SInternalHeader), static_cast<std::size_t>(header_size)));
 
         // unlock mutex
-        m_memfile_mutex.Unlock();
+        if (m_lock_type == lock_type::mutex)
+          m_memfile_mutex.Unlock();
+
+        // unlock rw-lock
+        if (m_lock_type == lock_type::rw_lock)
+          m_memfile_rw_lock.Unlock();
       }
     }
 
@@ -165,13 +215,16 @@ namespace eCAL
     bool ret_state = true;
 
     if (!remove_)
+      // in my opinion completely irreleavant /Max
       m_memfile_mutex.DropOwnership();
 
     // destroy memory file
     ret_state &= memfile::db::RemoveFile(m_name, remove_);
 
-    // Destroy mutex
+    // destroy mutex
     m_memfile_mutex.Destroy();
+    // destroy rw-lock
+    m_memfile_rw_lock.Destroy();
 
     // reset states
     m_created             = false;
@@ -189,28 +242,48 @@ namespace eCAL
 
   bool CMemoryFile::GetReadAccess(int timeout_)
   {
-    // currently we do not differ between read and write access
-    if (GetAccess(timeout_))
-    {
-      // mark as opened for read access
-      m_access_state = access_state::read_access;
+    if (m_lock_type == lock_type::mutex) {
+      // currently we do not differ between read and write access
+      if (GetAccess(timeout_))
+      {
+        // mark as opened for read access
+        m_access_state = access_state::read_access;
 
-      return(true);
+        return(true);
+      }
+
+      return(false);
     }
+    if (m_lock_type == lock_type::rw_lock) {
+      if (m_memfile_rw_lock.LockRead(timeout_))
+      {
+        // mark as opened for read access
+        m_access_state = access_state::read_access;
 
+        return(true);
+      }
+
+      return(false);
+    }
     return(false);
   }
 
-  bool CMemoryFile::ReleaseReadAccess()
+  bool CMemoryFile::ReleaseReadAccess(int64_t timeout_)
   {
     if (!m_created)                                  return(false);
     if (m_access_state != access_state::read_access) return(false);
 
-    // reset states
-    m_access_state = access_state::closed;
-
-    // release read mutex
-    m_memfile_mutex.Unlock();
+    // release mutex
+    if (m_lock_type == lock_type::mutex)
+      // reset states
+      m_access_state = access_state::closed;
+      m_memfile_mutex.Unlock();
+    if (m_lock_type == lock_type::rw_lock) {
+      if (!m_memfile_rw_lock.UnlockRead(timeout_))
+        return false;
+      if (m_memfile_rw_lock.GetReaderCount() == 1)
+        m_access_state = access_state::closed;
+    }
 
     return(true);
   }
@@ -271,7 +344,12 @@ namespace eCAL
     m_access_state = access_state::closed;
 
     // unlock mutex
-    m_memfile_mutex.Unlock();
+    if (m_lock_type == lock_type::mutex)
+      m_memfile_mutex.Unlock();
+
+    // unlock rw-lock
+    if (m_lock_type == lock_type::rw_lock)
+      m_memfile_rw_lock.Unlock();
 
     return(true);
   }
@@ -359,21 +437,36 @@ namespace eCAL
     if (!m_created)                            return(false);
     if (m_memfile_info.mem_address == nullptr) return(false);
 
-    // lock mutex
-    if(!m_memfile_mutex.Lock(timeout_))
-    {
+    if (m_lock_type == lock_type::mutex) {
+      // lock mutex
+      if (!m_memfile_mutex.Lock(timeout_))
+      {
 #ifndef NDEBUG
-      printf("Could not lock memory file mutex: %s.\n\n", m_name.c_str());
+        printf("Could not lock memory file mutex: %s.\n\n", m_name.c_str());
 #endif
-      return(false);
+        return(false);
+      }
     }
 
+    if (m_lock_type == lock_type::rw_lock) {
+      // lock mutex
+      if (!m_memfile_rw_lock.Lock(timeout_))
+      {
+#ifndef NDEBUG
+        printf("Could not lock memory file rw-lock: %s.\n\n", m_name.c_str());
+#endif
+        return(false);
+      }
+  }
+
     // reset current data size field of memfile header if lock is inconsistent 
+    /* irrelevant since eCAL currently does not care if the mutex is recoverable
     if (m_auto_sanitizing && m_memfile_mutex.WasRecovered())
     {
       m_header.cur_data_size = 0;
       *reinterpret_cast<SInternalHeader*>(m_memfile_info.mem_address) = m_header;
     }
+    */
 
     // update compatible header part of m_header
     memcpy(&m_header, m_memfile_info.mem_address, std::min(sizeof(SInternalHeader), static_cast<std::size_t>(m_header.int_hdr_size)));
@@ -389,7 +482,13 @@ namespace eCAL
       if (len > m_memfile_info.size)
       {
         // unlock mutex
-        m_memfile_mutex.Unlock();
+        if (m_lock_type == lock_type::mutex)
+          m_memfile_mutex.Unlock();
+
+        // unlock rw-lock
+        if (m_lock_type == lock_type::rw_lock)
+          m_memfile_rw_lock.Unlock();
+
         return(false);
       }
     }

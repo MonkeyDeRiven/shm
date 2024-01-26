@@ -40,9 +40,9 @@
 
 namespace eCAL
 {
-    CNamedRwLock::CNamedRwLock(const std::string& name_, bool recoverable_) : CNamedRwLock()
+    CNamedRwLock::CNamedRwLock(const std::string& name_) : CNamedRwLock()
     {
-        Create(name_, recoverable_);
+        Create(name_);
     }
 
     CNamedRwLock::CNamedRwLock()
@@ -66,7 +66,7 @@ namespace eCAL
         return *this;
     }
 
-    bool CNamedRwLock::Create(const std::string& name_, bool recoverable_)
+    bool CNamedRwLock::Create(const std::string& name_)
     {
 #ifdef ECAL_OS_LINUX
 #if !defined(ECAL_USE_CLOCKLOCK_MUTEX) && defined(ECAL_HAS_ROBUST_MUTEX)
@@ -82,7 +82,7 @@ namespace eCAL
 #endif
 
 #ifdef ECAL_OS_WINDOWS
-        m_impl = std::make_unique<CNamedRwLockImpl>(name_, recoverable_);
+        m_impl = std::make_unique<CNamedRwLockImpl>(name_);
 #endif
         return IsCreated();
     }
@@ -97,16 +97,6 @@ namespace eCAL
         return m_impl->IsCreated();
     }
 
-    bool CNamedRwLock::IsRecoverable() const
-    {
-        return m_impl->IsRecoverable();
-    }
-
-    bool CNamedRwLock::WasRecovered() const
-    {
-        return m_impl->WasRecovered();
-    }
-
     bool CNamedRwLock::HasOwnership() const
     {
         return m_impl->HasOwnership();
@@ -115,6 +105,21 @@ namespace eCAL
     void CNamedRwLock::DropOwnership()
     {
         m_impl->DropOwnership();
+    }
+
+    int CNamedRwLock::GetReaderCount()
+    {
+      return m_impl->GetReaderCount();
+    }
+
+    bool CNamedRwLock::LockRead(int64_t timeout_) 
+    {
+      return m_impl->LockRead(timeout_);
+    }
+
+    bool CNamedRwLock::UnlockRead(int64_t timeout_)
+    {
+      return m_impl->UnlockRead(timeout_);
     }
 
     bool CNamedRwLock::Lock(int64_t timeout_)

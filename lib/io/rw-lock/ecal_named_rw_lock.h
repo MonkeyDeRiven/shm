@@ -34,7 +34,7 @@ namespace eCAL
     class CNamedRwLock
     {
     public:
-        CNamedRwLock(const std::string& name_, bool recoverable_ = false);
+        CNamedRwLock(const std::string& name_);
         CNamedRwLock();
         ~CNamedRwLock();
 
@@ -43,16 +43,17 @@ namespace eCAL
         CNamedRwLock(CNamedRwLock&& named_rw_lock);
         CNamedRwLock& operator=(CNamedRwLock&& named_rw_lock);
 
-        bool Create(const std::string& name_, bool recoverable_ = false);
+        bool Create(const std::string& name_);
         void Destroy();
 
         bool IsCreated() const;
-        bool IsRecoverable() const;
-        bool WasRecovered() const;
         bool HasOwnership() const;
+        int GetReaderCount();
 
         void DropOwnership();
 
+        bool LockRead(int64_t timeout_);
+        bool UnlockRead(int64_t timeout_);
         bool Lock(int64_t timeout_);
         void Unlock();
 

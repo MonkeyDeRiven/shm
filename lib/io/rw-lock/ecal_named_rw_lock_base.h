@@ -34,16 +34,15 @@ namespace eCAL
         virtual ~CNamedRwLockImplBase() = default;
 
         virtual bool IsCreated() const = 0;
-        virtual bool IsRecoverable() const = 0;
-        virtual bool WasRecovered() const = 0;
         virtual bool HasOwnership() const = 0;
+        virtual int GetReaderCount() = 0;
 
         virtual void DropOwnership() = 0;
 
         virtual bool LockRead(int64_t timeout_) = 0;
-        virtual bool UnlockRead(int64_t) = 0;
-        virtual bool LockWrite(int64_t timeout_) = 0;
-        virtual void UnlockWrite();
+        virtual bool UnlockRead(int64_t timeout_) = 0;
+        virtual bool Lock(int64_t timeout_) = 0;
+        virtual void Unlock() = 0;
     };
 
     class CNamedRwLockStubImpl : public CNamedRwLockImplBase
@@ -58,18 +57,14 @@ namespace eCAL
             return false;
         }
 
-        bool IsRecoverable() const final
-        {
-            return false;
-        }
-        bool WasRecovered() const final
+        bool HasOwnership() const final
         {
             return false;
         }
 
-        bool HasOwnership() const final
+        int GetReaderCount() final
         {
-            return false;
+          return 0;
         }
 
         void DropOwnership() final
@@ -78,19 +73,20 @@ namespace eCAL
 
         bool LockRead(int64_t /*timeout_*/) final
         {
-            return false;
+          return false;
         }
 
         bool UnlockRead(int64_t /*timeout_*/) final
         {
+          return false;
         }
 
-        bool LockWrite(int64_t /*timeout_*/) final 
+        bool Lock(int64_t /*timeout_*/) final 
         {
           return false;
         }
 
-        void UnlockWrite() 
+        void Unlock() final
         {
         };
     };
