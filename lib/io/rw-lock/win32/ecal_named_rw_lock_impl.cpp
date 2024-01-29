@@ -68,12 +68,12 @@ namespace eCAL
 		return m_writer_mutex_handle != nullptr && m_reader_mutex_handle != nullptr;
 	}
 
-	bool CNamedMutex::IsRecoverable() const
+	bool CNamedRwLockImpl::IsRecoverable() const
 	{
 		return false;
 	}
 
-	bool CNamedMutex::WasRecovered() const
+	bool CNamedRwLockImpl::WasRecovered() const
 	{
 		return false;
 	}
