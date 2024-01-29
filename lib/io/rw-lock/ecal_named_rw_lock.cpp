@@ -40,9 +40,9 @@
 
 namespace eCAL
 {
-    CNamedRwLock::CNamedRwLock(const std::string& name_) : CNamedRwLock()
+    CNamedRwLock::CNamedRwLock(const std::string& name_, bool recoverable_) : CNamedRwLock()
     {
-        Create(name_);
+        Create(name_, recoverable_);
     }
 
     CNamedRwLock::CNamedRwLock()
@@ -66,7 +66,7 @@ namespace eCAL
         return *this;
     }
 
-    bool CNamedRwLock::Create(const std::string& name_)
+    bool CNamedRwLock::Create(const std::string& name_, bool recoverable_)
     {
 #ifdef ECAL_OS_LINUX
 #if !defined(ECAL_USE_CLOCKLOCK_MUTEX) && defined(ECAL_HAS_ROBUST_MUTEX)
@@ -82,7 +82,7 @@ namespace eCAL
 #endif
 
 #ifdef ECAL_OS_WINDOWS
-        m_impl = std::make_unique<CNamedRwLockImpl>(name_);
+        m_impl = std::make_unique<CNamedRwLockImpl>(name_, recoverable_);
 #endif
         return IsCreated();
     }
@@ -95,6 +95,16 @@ namespace eCAL
     bool CNamedRwLock::IsCreated() const
     {
         return m_impl->IsCreated();
+    }
+
+    bool CNamedRwLock::IsRecoverable() const
+    {
+        return m_impl->IsRecoverable();
+    }
+
+    bool CNamedRwLock::WasRecovered() const
+    {
+        return m_impl->WasRecovered();
     }
 
     bool CNamedRwLock::HasOwnership() const

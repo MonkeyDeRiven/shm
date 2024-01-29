@@ -34,6 +34,8 @@ namespace eCAL
         virtual ~CNamedRwLockImplBase() = default;
 
         virtual bool IsCreated() const = 0;
+        virtual bool IsRecoverable() const = 0;
+        virtual bool WasRecovered() const = 0;
         virtual bool HasOwnership() const = 0;
         virtual int GetReaderCount() = 0;
 
@@ -55,6 +57,16 @@ namespace eCAL
         bool IsCreated() const final
         {
             return false;
+        }
+
+        bool IsRecoverable() const final
+        {
+          return false;
+        }
+
+        bool WasRecovered() const final
+        {
+          return false;
         }
 
         bool HasOwnership() const final

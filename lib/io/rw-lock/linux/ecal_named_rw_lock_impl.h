@@ -18,12 +18,14 @@
 */
 
 /**
- * @brief  eCAL named rw-lock
+ * @brief  eCAL named mutex
 **/
 
 #pragma once
 
 #include "io/rw-lock/ecal_named_rw_lock_base.h"
+
+typedef struct named_rw_lock named_rw_lock_t;
 
 namespace eCAL
 {
@@ -32,7 +34,7 @@ namespace eCAL
   public:
     CNamedRwLockImpl(const std::string &name_, bool recoverable_);
     ~CNamedRwLockImpl();
-
+    
     CNamedRwLockImpl(const CNamedRwLockImpl&) = delete;
     CNamedRwLockImpl& operator=(const CNamedRwLockImpl&) = delete;
     CNamedRwLockImpl(CNamedRwLockImpl&&) = delete;
@@ -42,19 +44,17 @@ namespace eCAL
     bool IsRecoverable() const final;
     bool WasRecovered() const final;
     bool HasOwnership() const final;
-    int GetReaderCount() final;
+    int GetReaderCount();
 
     void DropOwnership() final;
 
-    bool LockRead(int64_t timeout_) final;
-    bool UnlockRead(int64_t timeout_) final;
-
+    bool LockRead(int64_t timeout_);
+    bool UnlockRead(int64_t timeout_);
     bool Lock(int64_t timeout_) final;
     void Unlock() final;
-
   private:
-    void* m_writer_mutex_handle;
-    void* m_reader_mutex_handle;
-    int m_reader_count;
+    named_rw_lock_t* m_rw_lock_handle;
+    std::string m_named;
+    bool m_has_ownership;
   };
 }

@@ -109,7 +109,7 @@ namespace eCAL
       }
     }
     else if (m_lock_type == lock_type::rw_lock) {
-      if (!m_memfile_rw_lock.Create(name_))
+      if (!m_memfile_rw_lock.Create(name_, auto_sanitizing_))
       {
 #ifndef NDEBUG
         printf("Could not create memory file rw_lock: %s.\n", name_);
