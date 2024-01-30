@@ -29,17 +29,27 @@ namespace eCAL
 {
 	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_) : m_writer_mutex_handle(nullptr), m_reader_mutex_handle(nullptr), m_reader_count(0)
 	{
+
+		// create mutex
 		const std::string writer_mutex_name = name_ + "write_mtx";
 		m_writer_mutex_handle = ::CreateMutex(
-			nullptr,																							// no security descriptor
+			nullptr,																							// default security descriptor
 			false,																								// mutex not owned
 			writer_mutex_name.c_str());		                        // object name
 
 		const std::string reader_mutex_name = name_ + "read_mtx";
 		m_reader_mutex_handle = ::CreateMutex(
-			nullptr,																							// no security descriptor
+			nullptr,																							// default security descriptor
 			false,																								// mutex not owned
 			reader_mutex_name.c_str());														// object name
+
+		// create event, functioning as conditional variable
+		const std::string event_name = name_ + "event";
+		m_event_handle = ::CreateEvent(
+			nullptr,																							// default security descriptor
+			true,																									// auto resets the signal state to non signaled, after a waiting process has been released
+			false,																								// initial state non signaled
+			event_name.c_str());																	// object name
 	}
 
 	CNamedRwLockImpl::~CNamedRwLockImpl()

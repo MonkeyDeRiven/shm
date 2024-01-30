@@ -53,6 +53,7 @@ namespace eCAL
   private:
     void* m_writer_mutex_handle;
     void* m_reader_mutex_handle;
+    void* m_event_handle;
     int m_reader_count;
   };
 }
