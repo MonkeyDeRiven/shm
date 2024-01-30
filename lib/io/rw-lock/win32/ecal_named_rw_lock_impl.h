@@ -50,7 +50,7 @@ namespace eCAL
     bool UnlockRead(int64_t timeout_) final;
 
     bool Lock(int64_t timeout_) final;
-    void Unlock() final;
+    bool Unlock() final;
 
   private:
     void* m_writer_mutex_handle;

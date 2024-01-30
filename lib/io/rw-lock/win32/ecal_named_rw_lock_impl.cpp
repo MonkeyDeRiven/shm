@@ -156,13 +156,14 @@ namespace eCAL
 		return false;
 	}
 
-	void CNamedRwLockImpl::Unlock()
+	bool CNamedRwLockImpl::Unlock()
 	{
 		// check mutex handle
 		if (m_writer_mutex_handle == nullptr)
-			return;
+			return false;
 
 		// release it
 		ReleaseMutex(m_writer_mutex_handle);
+		return true;
 	}
 }

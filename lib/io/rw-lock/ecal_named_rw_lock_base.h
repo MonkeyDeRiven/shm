@@ -44,7 +44,7 @@ namespace eCAL
         virtual bool LockRead(int64_t timeout_) = 0;
         virtual bool UnlockRead(int64_t timeout_) = 0;
         virtual bool Lock(int64_t timeout_) = 0;
-        virtual void Unlock() = 0;
+        virtual bool Unlock() = 0;
     };
 
     class CNamedRwLockStubImpl : public CNamedRwLockImplBase
@@ -98,8 +98,9 @@ namespace eCAL
           return false;
         }
 
-        void Unlock() final
+        bool Unlock() final
         {
+          return false;
         };
     };
 }

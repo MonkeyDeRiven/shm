@@ -267,7 +267,7 @@ namespace eCAL
 
   bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
   {
-    return false;
+    return Unlock();
   }
 
   bool CNamedRwLockImpl::Lock(int64_t timeout_)
@@ -307,9 +307,10 @@ namespace eCAL
   {
     // check mutex handle
     if(m_rw_lock_handle == nullptr)
-      return;
+      return false;
 
     // unlock the mutex
     named_rw_lock_unlock(m_rw_lock_handle);
+    return true;
   }
 }

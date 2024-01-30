@@ -137,9 +137,9 @@ namespace eCAL
         return m_impl->Lock(timeout_);
     }
 
-    void CNamedRwLock::Unlock()
+    bool CNamedRwLock::Unlock()
     {
-        m_impl->Unlock();
+        return m_impl->Unlock();
     }
 }
 

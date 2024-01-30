@@ -51,7 +51,7 @@ namespace eCAL
     bool LockRead(int64_t timeout_);
     bool UnlockRead(int64_t timeout_);
     bool Lock(int64_t timeout_) final;
-    void Unlock() final;
+    bool Unlock() final;
   private:
     named_rw_lock_t* m_rw_lock_handle;
     std::string m_named;

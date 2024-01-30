@@ -57,7 +57,7 @@ namespace eCAL
         bool LockRead(int64_t timeout_);
         bool UnlockRead(int64_t timeout_);
         bool Lock(int64_t timeout_);
-        void Unlock();
+        bool Unlock();
 
     private:
         std::unique_ptr<CNamedRwLockImplBase> m_impl;
