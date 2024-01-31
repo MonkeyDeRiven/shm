@@ -135,7 +135,7 @@ namespace eCAL
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
 			// check if any reader is active
-			if (m_reader_count > 0) {
+			if (m_reader_count > 0 || m_writer_active) {
 				// release mutex to allow readers to unlock while waiting
 				ReleaseMutex(m_mutex_handle);
 				// wait for readers to unlock and signal
@@ -153,7 +153,6 @@ namespace eCAL
 			}
 			// aquire writer lock and release mutex
 			m_writer_active = true;
-			ReleaseMutex(m_mutex_handle);
 			return true;
 		}
 		return false;
