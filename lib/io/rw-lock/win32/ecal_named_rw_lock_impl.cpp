@@ -27,24 +27,18 @@
 #include <iostream>
 namespace eCAL
 {
-	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_) : m_writer_mutex_handle(nullptr), m_reader_mutex_handle(nullptr), m_reader_count(0)
+	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_) : m_mutex_handle(nullptr), m_reader_count(0), m_writer_active(false)
 	{
 
 		// create mutex
-		const std::string writer_mutex_name = name_ + "write_mtx";
-		m_writer_mutex_handle = ::CreateMutex(
+		const std::string writer_mutex_name = name_ + "_mtx";
+		m_mutex_handle = ::CreateMutex(
 			nullptr,																							// default security descriptor
 			false,																								// mutex not owned
 			writer_mutex_name.c_str());		                        // object name
 
-		const std::string reader_mutex_name = name_ + "read_mtx";
-		m_reader_mutex_handle = ::CreateMutex(
-			nullptr,																							// default security descriptor
-			false,																								// mutex not owned
-			reader_mutex_name.c_str());														// object name
-
 		// create event, functioning as conditional variable
-		const std::string event_name = name_ + "event";
+		const std::string event_name = name_ + "_event";
 		m_event_handle = ::CreateEvent(
 			nullptr,																							// default security descriptor
 			true,																									// auto resets the signal state to non signaled, after a waiting process has been released
@@ -54,28 +48,25 @@ namespace eCAL
 
 	CNamedRwLockImpl::~CNamedRwLockImpl()
 	{
-		// check writer mutex
-		if (m_writer_mutex_handle != nullptr) {
+		// check mutex
+		if (m_mutex_handle != nullptr) {
 			// release it
-			ReleaseMutex(m_writer_mutex_handle);
+			ReleaseMutex(m_mutex_handle);
 
 			// close it
-			CloseHandle(m_writer_mutex_handle);
+			CloseHandle(m_mutex_handle);
 		}
 
-		// check reader mutex
-		if (m_reader_mutex_handle != nullptr) {
-			// release it
-			ReleaseMutex(m_reader_mutex_handle);
-
+		// check event
+		if (m_event_handle != nullptr) {
 			// close it
-			CloseHandle(m_reader_mutex_handle);
+			CloseHandle(m_event_handle);
 		}
 	}
 
 	bool CNamedRwLockImpl::IsCreated() const
 	{
-		return m_writer_mutex_handle != nullptr && m_reader_mutex_handle != nullptr;
+		return m_mutex_handle != nullptr && m_event_handle != nullptr;
 	}
 
 	bool CNamedRwLockImpl::HasOwnership() const
@@ -94,29 +85,29 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::LockRead(int64_t timeout_)
 	{
-		//check mutex handles
-		if (IsCreated() == false)
-			return false;
-
-		//wait for read mutex access
-		DWORD result = WaitForSingleObject(m_reader_mutex_handle, static_cast<DWORD>(timeout_));
-		if (result == WAIT_OBJECT_0)
-		{
-			// aquire reader lock
-			m_reader_count++;
-			if (m_reader_count == 1)
-			{
-				// block write access
-				result = WaitForSingleObject(m_writer_mutex_handle, static_cast<DWORD>(timeout_));
-				if (result == WAIT_OBJECT_0) {
-					ReleaseMutex(m_reader_mutex_handle);
-					return true;
+		// lock mutex
+		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
+		if (result == WAIT_OBJECT_0) {
+			// check if the writer is active
+			if (m_writer_active) {
+				// unlock the mutex to allow writer to unlock the rw-lock while waiting 
+				ReleaseMutex(m_mutex_handle);
+				// wait for writer to unlock and signal
+				result = WaitForSingleObject(m_event_handle, static_cast<DWORD>(timeout_));
+				// check if event was signaled before timeout
+				if (result != WAIT_OBJECT_0) {
+					return false;
 				}
-				m_reader_count--;
-				ReleaseMutex(m_reader_mutex_handle);
-				return false;
+				// lock the mutex again, because the locking process is not done yet
+				result = WaitForSingleObject(m_event_handle, static_cast<DWORD>(timeout_));
+				// check if mutex was locked before timeout
+				if (result != WAIT_OBJECT_0) {
+					return false;
+				}
 			}
-			ReleaseMutex(m_reader_mutex_handle);
+			// aquire reader lock and unlock mutex
+			m_reader_count++;
+			ReleaseMutex(m_mutex_handle);
 			return true;
 		}
 		return false;
@@ -124,20 +115,16 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
 	{
-		// check mutex handles
-		if (IsCreated() == false)
-			return false;
-
-		// wait for read mutex access
-		DWORD result = WaitForSingleObject(m_reader_mutex_handle, static_cast<DWORD>(timeout_));
+		// lock mutex
+		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
+			// release reader lock
 			m_reader_count--;
-			// release write access
 			if (m_reader_count == 0) {
-				// unblock writer
-				ReleaseMutex(m_writer_mutex_handle);
+				// signal writer 
+				SetEvent(m_event_handle);
 			}
-			ReleaseMutex(m_reader_mutex_handle);
+			ReleaseMutex(m_mutex_handle);
 			return true;
 		}
 		return false;
@@ -145,24 +132,41 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::Lock(int64_t timeout_)
 	{
-		// check mutex handle
-		if (m_writer_mutex_handle == nullptr)
-			return false;
-
-		// wait for access
-		const DWORD result = WaitForSingleObject(m_writer_mutex_handle, static_cast<DWORD>(timeout_));
-		if (result == WAIT_OBJECT_0)
+		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
+		if (result == WAIT_OBJECT_0) {
+			// check if any reader is active
+			if (m_reader_count > 0) {
+				// release mutex to allow readers to unlock while waiting
+				ReleaseMutex(m_mutex_handle);
+				// wait for readers to unlock and signal
+				result = WaitForSingleObject(m_event_handle, static_cast<DWORD>(timeout_));
+				// check if event was signaled before timeout
+				if (result != WAIT_OBJECT_0) {
+					return false;
+				}
+				// lock the mutex again, because the locking process is not done yet
+				result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
+				// check if mutex was locked before timeout
+				if (result != WAIT_OBJECT_0) {
+					return false;
+				}
+			}
+			// aquire writer lock and release mutex
+			m_writer_active = true;
+			ReleaseMutex(m_mutex_handle);
 			return true;
+		}
 		return false;
 	}
 
 	void CNamedRwLockImpl::Unlock()
 	{
-		// check mutex handle
-		if (m_writer_mutex_handle == nullptr)
-			return;
-
-		// release it
-		ReleaseMutex(m_writer_mutex_handle);
+		// no timeout could lead to deadlock! 
+		DWORD result = WaitForSingleObject(m_mutex_handle, INFINITE);
+		if (result == WAIT_OBJECT_0) {
+			m_writer_active = false;
+			ReleaseMutex(m_mutex_handle);
+			SetEvent(m_event_handle);
+		}
 	}
 }

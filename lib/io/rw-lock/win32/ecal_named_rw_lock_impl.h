@@ -51,9 +51,9 @@ namespace eCAL
     void Unlock() final;
 
   private:
-    void* m_writer_mutex_handle;
-    void* m_reader_mutex_handle;
+    void* m_mutex_handle;
     void* m_event_handle;
+    bool m_writer_active;
     int m_reader_count;
   };
 }
