@@ -34,7 +34,7 @@ namespace eCAL
     class CNamedRwLock
     {
     public:
-        CNamedRwLock(const std::string& name_, bool recoverable_);
+        CNamedRwLock(const std::string& name_, bool recoverable_ = false);
         CNamedRwLock();
         ~CNamedRwLock();
 

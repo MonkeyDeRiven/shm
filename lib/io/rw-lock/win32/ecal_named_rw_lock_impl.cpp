@@ -94,6 +94,9 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::LockRead(int64_t timeout_)
 	{
+		if (!IsCreated())
+			return false;
+
 		// lock mutex
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
@@ -124,6 +127,9 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
 	{
+		if (!IsCreated())
+			return false;
+
 		// lock mutex
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
@@ -141,6 +147,9 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::Lock(int64_t timeout_)
 	{
+		if (!IsCreated())
+			return false;
+
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
 			// check if any reader is active
@@ -170,12 +179,17 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::Unlock()
 	{
+		if (!IsCreated())
+			return false;
+
 		// no timeout could lead to deadlock! 
 		DWORD result = WaitForSingleObject(m_mutex_handle, INFINITE);
 		if (result == WAIT_OBJECT_0) {
 			m_writer_active = false;
 			ReleaseMutex(m_mutex_handle);
 			SetEvent(m_event_handle);
+			return true;
 		}
+		return false;
 	}
 }
