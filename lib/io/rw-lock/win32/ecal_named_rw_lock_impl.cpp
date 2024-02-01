@@ -153,6 +153,7 @@ namespace eCAL
 			}
 			// aquire writer lock and release mutex
 			m_writer_active = true;
+			ReleaseMutex(m_mutex_handle);
 			return true;
 		}
 		return false;
