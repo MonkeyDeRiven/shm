@@ -27,9 +27,8 @@
 #include <iostream>
 namespace eCAL
 {
-	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_) : m_mutex_handle(nullptr), m_reader_count(0), m_writer_active(false)
+	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_, bool recoverable_) : m_mutex_handle(nullptr), m_reader_count(0), m_writer_active(false)
 	{
-
 		// create mutex
 		const std::string writer_mutex_name = name_ + "_mtx";
 		m_mutex_handle = ::CreateMutex(
