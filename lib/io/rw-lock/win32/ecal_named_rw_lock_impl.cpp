@@ -27,7 +27,7 @@
 #include <iostream>
 namespace eCAL
 {
-	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_, bool recoverable_) : m_mutex_handle(nullptr), m_reader_count(0), m_writer_active(false)
+	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_, bool recoverable_) : m_mutex_handle(nullptr)
 	{
 		// create mutex
 		const std::string writer_mutex_name = name_ + "_mtx";
@@ -43,6 +43,28 @@ namespace eCAL
 			true,																									// auto resets the signal state to non signaled, after a waiting process has been released
 			false,																								// initial state non signaled
 			event_name.c_str());																	// object name
+
+		// try to open the shared memory
+		const std::string shared_memroy_name = name_ + "_shm";
+		m_shm_handle = ::OpenFileMapping(PAGE_READONLY, false, shared_memroy_name.c_str());
+
+		// check if file memory does not exist yet
+		if (m_shm_handle == nullptr) {
+			// create shared memory for lock state
+			m_shm_handle = ::CreateFileMapping(
+				INVALID_HANDLE_VALUE,																	// allocate virtual memory
+				nullptr,																							// default security descriptor
+				PAGE_READWRITE,																				// allow read and write operations										
+				0,																										// high-order DWORD of the maximum size
+				sizeof(state),																				// low-order DWORD of the maximum size 
+				shared_memroy_name.c_str()														// object name
+			);
+			// map lock state struct into the newly allocated shared memory
+			state* temp_state = (state*)MapViewOfFile(m_shm_handle, FILE_MAP_WRITE, 0, 0, sizeof(state));
+			*temp_state = state();
+		}
+		// get a pointer to the state
+		m_lock_state = (state*)MapViewOfFile(m_shm_handle, PAGE_READONLY, 0, 0, sizeof(state));
 	}
 
 	CNamedRwLockImpl::~CNamedRwLockImpl()
@@ -60,6 +82,12 @@ namespace eCAL
 		if (m_event_handle != nullptr) {
 			// close it
 			CloseHandle(m_event_handle);
+		}
+
+		// check shm
+		if (m_shm_handle != nullptr) {
+			//close it
+			CloseHandle(m_shm_handle);
 		}
 	}
 
@@ -89,7 +117,7 @@ namespace eCAL
 
 	int CNamedRwLockImpl::GetReaderCount()
 	{
-		return m_reader_count;
+		return m_lock_state->reader_count;
 	}
 
 	bool CNamedRwLockImpl::LockRead(int64_t timeout_)
@@ -101,7 +129,7 @@ namespace eCAL
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
 			// check if the writer is active
-			if (m_writer_active) {
+			if (m_lock_state->writer_active) {
 				// unlock the mutex to allow writer to unlock the rw-lock while waiting 
 				ReleaseMutex(m_mutex_handle);
 				// wait for writer to unlock and signal
@@ -118,7 +146,7 @@ namespace eCAL
 				}
 			}
 			// aquire reader lock and unlock mutex
-			m_reader_count++;
+			m_lock_state->reader_count++;
 			ReleaseMutex(m_mutex_handle);
 			return true;
 		}
@@ -134,8 +162,8 @@ namespace eCAL
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
 			// release reader lock
-			m_reader_count--;
-			if (m_reader_count == 0) {
+			m_lock_state->reader_count--;
+			if (m_lock_state->reader_count == 0) {
 				// signal writer 
 				SetEvent(m_event_handle);
 			}
@@ -153,7 +181,7 @@ namespace eCAL
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
 			// check if any reader is active
-			if (m_reader_count > 0 || m_writer_active) {
+			if (m_lock_state->reader_count > 0 || m_lock_state->writer_active) {
 				// release mutex to allow readers to unlock while waiting
 				ReleaseMutex(m_mutex_handle);
 				// wait for readers to unlock and signal
@@ -170,7 +198,7 @@ namespace eCAL
 				}
 			}
 			// aquire writer lock and release mutex
-			m_writer_active = true;
+			m_lock_state->writer_active = true;
 			ReleaseMutex(m_mutex_handle);
 			return true;
 		}
@@ -185,7 +213,7 @@ namespace eCAL
 		// no timeout could lead to deadlock! 
 		DWORD result = WaitForSingleObject(m_mutex_handle, INFINITE);
 		if (result == WAIT_OBJECT_0) {
-			m_writer_active = false;
+			m_lock_state->writer_active = false;
 			ReleaseMutex(m_mutex_handle);
 			SetEvent(m_event_handle);
 			return true;

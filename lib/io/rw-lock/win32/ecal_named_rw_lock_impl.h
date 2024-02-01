@@ -24,6 +24,15 @@
 #pragma once
 
 #include "io/rw-lock/ecal_named_rw_lock_base.h"
+#include <atomic>
+
+struct named_rw_lock_state 
+{
+  bool writer_active = false;
+  int reader_count = 0;
+};
+
+typedef struct named_rw_lock_state state;
 
 namespace eCAL
 {
@@ -55,7 +64,7 @@ namespace eCAL
   private:
     void* m_mutex_handle;
     void* m_event_handle;
-    bool m_writer_active;
-    int m_reader_count;
+    void* m_shm_handle;
+    state* m_lock_state;
   };
 }
