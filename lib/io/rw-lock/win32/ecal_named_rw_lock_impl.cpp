@@ -36,6 +36,9 @@ namespace eCAL
 			false,																								// mutex not owned
 			writer_mutex_name.c_str());		                        // object name
 
+		if (m_mutex_handle == nullptr)
+			throw CreateMutexException();
+
 		// create event, functioning as conditional variable
 		const std::string event_name = name_ + "_event";
 		m_event_handle = ::CreateEvent(
@@ -44,26 +47,31 @@ namespace eCAL
 			false,																								// initial state non signaled
 			event_name.c_str());																	// object name
 
-		// try to open the shared memory
-		const std::string shared_memroy_name = name_ + "_shm";
-		m_shm_handle = ::OpenFileMapping(PAGE_READONLY, false, shared_memroy_name.c_str());
+		if (m_event_handle == nullptr)
+			throw CreateEventException();
 
-		// check if file memory does not exist yet
-		if (m_shm_handle == nullptr) {
-			// create shared memory for lock state
-			m_shm_handle = ::CreateFileMapping(
-				INVALID_HANDLE_VALUE,																	// allocate virtual memory
-				nullptr,																							// default security descriptor
-				PAGE_READWRITE,																				// allow read and write operations										
-				0,																										// high-order DWORD of the maximum size
-				sizeof(state),																				// low-order DWORD of the maximum size 
-				shared_memroy_name.c_str()														// object name
-			);
+		// create shared memory for lock state
+		const std::string shared_memory_name = name_ + "_shm";
+		m_shm_handle = ::CreateFileMapping(
+			INVALID_HANDLE_VALUE,																	// allocate virtual memory
+			nullptr,																							// default security descriptor
+			PAGE_READWRITE,																				// allow read and write operations										
+			0,																										// high-order DWORD of the maximum size
+			sizeof(state),																				// low-order DWORD of the maximum size 
+			shared_memory_name.c_str());													// object name
+
+		if (m_shm_handle == nullptr)
+			throw SHMException();
+		
+		// if this is the first call of CreateFileMapping
+		if (GetLastError() != ERROR_ALREADY_EXISTS) {
 			// map lock state struct into the newly allocated shared memory
 			state* temp_state = (state*)MapViewOfFile(m_shm_handle, FILE_MAP_WRITE, 0, 0, sizeof(state));
+			// could lead to dereferencing a nullptr
 			*temp_state = state();
 		}
-		// get a pointer to the state
+
+		// get a pointer to the state location
 		m_lock_state = (state*)MapViewOfFile(m_shm_handle, PAGE_READONLY, 0, 0, sizeof(state));
 	}
 

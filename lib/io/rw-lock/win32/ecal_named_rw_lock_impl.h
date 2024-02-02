@@ -26,6 +26,45 @@
 #include "io/rw-lock/ecal_named_rw_lock_base.h"
 #include <atomic>
 
+class CreateMutexException : public std::exception {
+public:
+  CreateMutexException() : errorMessage("Could not create NamedMutex!") {};
+  CreateMutexException(const char* msg) : errorMessage(msg) {};
+
+  const char* what() const override{
+    return errorMessage.c_str();
+  }
+
+private:
+  std::string errorMessage;
+};
+
+class CreateEventException : public std::exception {
+public:
+  CreateEventException() : errorMessage("Could not create NamedEvent!") {};
+  CreateEventException(const char* msg) : errorMessage(msg) {};
+
+  const char* what() const override {
+    return errorMessage.c_str();
+  }
+
+private:
+  std::string errorMessage;
+};
+
+class SHMException : public std::exception {
+public:
+  SHMException() : errorMessage("Could not create shared memory!") {};
+  SHMException(const char* msg) : errorMessage(msg) {};
+
+  const char* what() const override {
+    return errorMessage.c_str();
+  }
+
+private:
+  std::string errorMessage;
+};
+
 struct named_rw_lock_state 
 {
   bool writer_active = false;
