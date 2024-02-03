@@ -8,9 +8,6 @@
 #include <atomic>
 #include <condition_variable>
 
-// assures that the thread access the rw-lock in the order that the test expects it
-std::mutex serializeMutex;
-
 // enables a thread to hold a lock till it is not needed anymore
 std::condition_variable threadTerminateCond;
 std::mutex threadHoldMutex;
@@ -21,9 +18,6 @@ const int64_t TIMEOUT = 20;
 
 void writerHoldLockSerialized(std::string& lockName, std::atomic<int>& feedback /* -1=not signaled, 0=fail, 1=success*/)
 {
-	// serialize the lock aquisition to avoid unexpected timeouts during test proccess 
-	std::unique_lock <std::mutex> serializeGuard(serializeMutex);
-
 	// create the rw-lock
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool lockSuccess = rwLock.Lock(TIMEOUT);
@@ -37,31 +31,20 @@ void writerHoldLockSerialized(std::string& lockName, std::atomic<int>& feedback 
 		return;
 	}
 
-	// release the serialize lock now that the writer holds the lock
-	serializeGuard.unlock();
-
 	// hold the rw-lock until notification arrives
 	threadTerminateCond.wait(std::unique_lock<std::mutex>(threadHoldMutex), [] { return threadDone.load(); });
 
-	// serialize the lock release to avoid unexpected timeouts during test process
-	serializeGuard.lock();
 	rwLock.Unlock();
-	serializeGuard.unlock();
 }
 
 // this function should always be able to aquire the read lock, since no other thread can try to aquire the lock at the same time.
 // CAUTION! The guarantee above only applies, if this function does not get called in the same test with readerHoldLockParallel()!
 void readerHoldLockSerialized(std::string& lockName, std::atomic<int>& lockHolderCount, std::atomic<int>& lockTimeoutCounter)
 {
-	// serialize the lock aquisition to avoid unexpected timeouts during test proccess 
-	std::unique_lock <std::mutex> serializeGuard(serializeMutex);
 
 	// create the rw-lock
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool lockSuccess = rwLock.LockRead(TIMEOUT);
-
-	// release the serialize lock now that the writer holds the lock
-	serializeGuard.unlock();
 
 	// check if lock was aquired and pass information to test running thread
 	if (lockSuccess)
@@ -75,10 +58,7 @@ void readerHoldLockSerialized(std::string& lockName, std::atomic<int>& lockHolde
 	// hold the rw-lock and dont release it
 	threadTerminateCond.wait(std::unique_lock<std::mutex>(threadHoldMutex), [] { return threadDone.load(); });
 
-	// serialize the lock release to avoid unexpected timeouts during test process
-	serializeGuard.lock();
 	rwLock.Unlock();
-	serializeGuard.unlock();
 }
 
 void writerTryLock(std::string& lockName, std::atomic<bool>& success)
@@ -86,12 +66,7 @@ void writerTryLock(std::string& lockName, std::atomic<bool>& success)
 	// create the rw-lock
 	eCAL::CNamedRwLock rwLock(lockName);
 
-	{
-		// wait for anyone that needs to adjust the lock state first
-		std::lock_guard<std::mutex> serializeGuard(serializeMutex);
-		// try to lock the file	within timeout period and write the result to success
-		success = rwLock.Lock(TIMEOUT);
-	}
+	success = rwLock.Lock(TIMEOUT);
 
 	if (success == true) {
 		rwLock.Unlock();
@@ -101,17 +76,19 @@ void writerTryLock(std::string& lockName, std::atomic<bool>& success)
 void readerTryLock(std::string& lockName, std::atomic<bool>& success)
 {
 	eCAL::CNamedRwLock rwLock(lockName);
-
-	{
-		// wait for anyone that needs to adjust the lock state first
-		std::lock_guard<std::mutex> serializeGuard(serializeMutex);
-		// try to lock the file	within timeout period and write the result to success
-		success = rwLock.LockRead(TIMEOUT);
-	}
+	// try to lock the file	within timeout period and write the result to success
+	success = rwLock.LockRead(TIMEOUT);
 
 	if (success == true) {
 		rwLock.UnlockRead(TIMEOUT);
 	}
+}
+
+void holdHandle(std::string& lockName, std::atomic<bool>& holdingHandle)
+{
+	eCAL::CNamedRwLock rwLock(lockName);
+	holdingHandle = true;
+	threadTerminateCond.wait(std::unique_lock<std::mutex>(threadHoldMutex), [] { return threadDone.load(); });
 }
 
 TEST(RwLock, LockWrite)
@@ -333,10 +310,64 @@ TEST(RwLock, LockWriteWhileReadLocked)
 
 TEST(RwLock, ImpliciteUnlockingAtDestruction)
 {
+	std::string lockName = "ImpliciteUnlockingAtDestructionTest";
 
+	// we need to create a thrad which holds a handle to the object during the whole test.
+	// Otherwise the OS will remove the shm when the lock goes out of scope and 
+	// the lock gets newly initialized when we construct it in this thread,
+	// which defeats the whole purpose of this test completely
+
+	std::unique_lock<std::mutex> threadHoldGuard(threadHoldMutex);
+
+	std::atomic<bool> threadHoldsHandle = false;
+	std::thread handleHoldingThread([&] { holdHandle(lockName, threadHoldsHandle); });
+
+	// wait for thread to construct rw-lock and hold handle
+	while (threadHoldsHandle == false) {}
+	
+	// context after rwLock will be destructed
+	{
+		eCAL::CNamedRwLock rwLock(lockName);
+
+		bool lockSuccess = rwLock.LockRead(TIMEOUT);
+
+		if (!lockSuccess)
+			std::cout << "WARNING: The correctness of implicite unlocking read-lock is not guaranteed, due to issues during the CNamedRwLock::LockRead() function" << std::endl;
+	}
+	// lock should be implicitely released now
+
+	// context after rwLock will be destructed
+	{
+		eCAL::CNamedRwLock rwLock(lockName);
+
+		bool lockSuccess = rwLock.Lock(TIMEOUT);
+
+		// check now if lock call was successfull, because it only can be,
+		// if lock was implicitely released after last context ende
+		EXPECT_TRUE(lockSuccess) << "Read Lock is not released during desctruction!";
+
+		if (!lockSuccess)
+			std::cout << "WARNING: The correctness of implicite unlocking write-lock is not guaranteed, due to issues during the CNamedRwLock::Lock() function" << std::endl;
+	}
+	// lock should be implecitely realeased again now
+
+	eCAL::CNamedRwLock rwLock(lockName);
+	bool lockSuccess = rwLock.Lock(TIMEOUT);
+	
+	EXPECT_TRUE(lockSuccess) << "Write lock is not released during construction!";
+	
+	// tell thread to release handle now
+	threadDone = true;
+	threadHoldGuard.unlock();
+	threadTerminateCond.notify_one();
+	threadDone = false;
 }
 
-// Checks if the lock can not become inconsistent if many processes try to construct it at the same time
+// Checks if the lock can not become inconsistent if many processes try to construct it at the same time.
+// For example when a thread goes to sleep during the construction process, gets put to sleep, another
+// thread constructs the lock and initialises the state. Afterwards the lock gets used by one or more
+// threads and then the process which sleept during contruction gets woken up. Now the process migth 
+// thinks it was the first one to construct it and initializes it again, effectively reseting a in use lock. 
 TEST(RwLock, RobustLockConstruction)
 {
 
