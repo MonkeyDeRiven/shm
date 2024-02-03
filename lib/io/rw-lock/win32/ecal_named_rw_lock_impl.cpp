@@ -71,7 +71,7 @@ namespace eCAL
 			*temp_state = state();
 		}
 
-		// get a pointer to the state location
+		// get a pointer to the state
 		m_lock_state = (state*)MapViewOfFile(m_shm_handle, PAGE_READONLY, 0, 0, sizeof(state));
 	}
 
@@ -147,7 +147,7 @@ namespace eCAL
 					return false;
 				}
 				// lock the mutex again, because the locking process is not done yet
-				result = WaitForSingleObject(m_event_handle, static_cast<DWORD>(timeout_));
+				result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 				// check if mutex was locked before timeout
 				if (result != WAIT_OBJECT_0) {
 					return false;
