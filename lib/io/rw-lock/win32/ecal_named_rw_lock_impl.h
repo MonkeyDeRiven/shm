@@ -105,5 +105,9 @@ namespace eCAL
     void* m_event_handle;
     void* m_shm_handle;
     state* m_lock_state;
+
+    // per lock attributes
+    bool m_holds_write_lock;
+    bool m_holds_read_lock;
   };
 }

@@ -27,7 +27,7 @@
 #include <iostream>
 namespace eCAL
 {
-	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_, bool recoverable_) : m_mutex_handle(nullptr)
+	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_, bool recoverable_) : m_mutex_handle(nullptr), m_holds_read_lock(false), m_holds_write_lock(false)
 	{
 		// create mutex
 		const std::string writer_mutex_name = name_ + "_mtx";
@@ -77,6 +77,11 @@ namespace eCAL
 
 	CNamedRwLockImpl::~CNamedRwLockImpl()
 	{
+		// check read lock
+		if (m_holds_read_lock)
+			UnlockRead(INFINITE);
+		if (m_holds_write_lock)
+			Unlock();
 		// check mutex
 		if (m_mutex_handle != nullptr) {
 			// release it
@@ -156,6 +161,7 @@ namespace eCAL
 			// aquire reader lock and unlock mutex
 			m_lock_state->reader_count++;
 			ReleaseMutex(m_mutex_handle);
+			m_holds_read_lock = true;
 			return true;
 		}
 		return false;
@@ -169,6 +175,10 @@ namespace eCAL
 		// lock mutex
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
+			// dont change the lock state if the lock is not held by the caller in the first place
+			if (!m_holds_read_lock)
+				// return true because the lock is unlocked even tho the lock state was not changed
+				return true;
 			// release reader lock
 			m_lock_state->reader_count--;
 			if (m_lock_state->reader_count == 0) {
@@ -176,6 +186,7 @@ namespace eCAL
 				SetEvent(m_event_handle);
 			}
 			ReleaseMutex(m_mutex_handle);
+			m_holds_read_lock = false;
 			return true;
 		}
 		return false;
@@ -208,6 +219,7 @@ namespace eCAL
 			// aquire writer lock and release mutex
 			m_lock_state->writer_active = true;
 			ReleaseMutex(m_mutex_handle);
+			m_holds_write_lock = true;
 			return true;
 		}
 		return false;
@@ -224,6 +236,7 @@ namespace eCAL
 			m_lock_state->writer_active = false;
 			ReleaseMutex(m_mutex_handle);
 			SetEvent(m_event_handle);
+			m_holds_write_lock = false;
 			return true;
 		}
 		return false;
