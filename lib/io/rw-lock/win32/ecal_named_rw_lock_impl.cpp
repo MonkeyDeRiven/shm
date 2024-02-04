@@ -172,13 +172,13 @@ namespace eCAL
 		if (!IsCreated())
 			return false;
 
+		// dont change the lock state if the lock is not held by the caller 
+		if (!m_holds_read_lock)
+			return false;
+
 		// lock mutex
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0) {
-			// dont change the lock state if the lock is not held by the caller in the first place
-			if (!m_holds_read_lock)
-				// return true because the lock is unlocked even tho the lock state was not changed
-				return true;
 			// release reader lock
 			m_lock_state->reader_count--;
 			if (m_lock_state->reader_count == 0) {
@@ -228,6 +228,10 @@ namespace eCAL
 	bool CNamedRwLockImpl::Unlock()
 	{
 		if (!IsCreated())
+			return false;
+
+		// dont change the lock state if the lock is not held by the caller 
+		if (m_holds_write_lock)
 			return false;
 
 		// no timeout could lead to deadlock! 
