@@ -37,11 +37,8 @@ void writerHoldLockSerialized(std::string& lockName, std::atomic<int>& feedback 
 	rwLock.Unlock();
 }
 
-// this function should always be able to aquire the read lock, since no other thread can try to aquire the lock at the same time.
-// CAUTION! The guarantee above only applies, if this function does not get called in the same test with readerHoldLockParallel()!
 void readerHoldLockSerialized(std::string& lockName, std::atomic<int>& lockHolderCount, std::atomic<int>& lockTimeoutCounter)
 {
-
 	// create the rw-lock
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool lockSuccess = rwLock.LockRead(TIMEOUT);
@@ -58,7 +55,7 @@ void readerHoldLockSerialized(std::string& lockName, std::atomic<int>& lockHolde
 	// hold the rw-lock and dont release it
 	threadTerminateCond.wait(std::unique_lock<std::mutex>(threadHoldMutex), [] { return threadDone.load(); });
 
-	rwLock.Unlock();
+	//rwLock.UnlockRead(TIMEOUT);
 }
 
 void writerTryLock(std::string& lockName, std::atomic<bool>& success)
@@ -91,6 +88,9 @@ void holdHandle(std::string& lockName, std::atomic<bool>& holdingHandle)
 	threadTerminateCond.wait(std::unique_lock<std::mutex>(threadHoldMutex), [] { return threadDone.load(); });
 }
 
+/*
+* This test confirms that the a write lock can be aquired by a process
+*/
 TEST(RwLock, LockWrite)
 {
 	std::string lockName = "LockWriteTest";
@@ -104,6 +104,9 @@ TEST(RwLock, LockWrite)
 	EXPECT_TRUE(lockSuccess) << "The rw-lock denied write access, even tho no other process was holding the lock at the time.";
 }
 
+/*
+* This test confirms that the a read lock can be aquired by a process
+*/
 TEST(RwLock, LockRead)
 {
 	std::string lockName = "LockReadTest";
@@ -117,7 +120,9 @@ TEST(RwLock, LockRead)
 	EXPECT_TRUE(lockSuccess) << "The rw-lock denied read access, even tho no other process was holding the lock at the time.";
 }
 
-// edit this test as soon as Unlock() returns a bool as well
+/*
+* This test confirms that the a write lock can be released by a process
+*/
 TEST(RwLock, UnlockWrite)
 {
 	std::string lockName = "UnlockWriteTest";
@@ -126,14 +131,15 @@ TEST(RwLock, UnlockWrite)
 	bool lockSuccess = rwLock.Lock(TIMEOUT);
 
 	if (lockSuccess == true) {
-		rwLock.Unlock();
-		lockSuccess = rwLock.Lock(TIMEOUT);
+		lockSuccess = rwLock.Unlock();
 		EXPECT_TRUE(lockSuccess);
 	}
 	else
 		std::cout << "WARNING: UnlockWrite test could not be run correctly due to error in CNamedRwLock::Lock() function" << std::endl;
 }
-
+/*
+* This test confirms that the a read lock can be released by a process
+*/
 TEST(RwLock, UnlockRead)
 {
 	std::string lockName = "UnlockReadTest";
@@ -149,7 +155,90 @@ TEST(RwLock, UnlockRead)
 		std::cout << "WARNING: UnlockRead test could not be run correctly due to error in CNamedRwLock::Lock() function" << std::endl;
 }
 
+/*	
+*	This Test confirms that a process which is currently not holding a read lock,
+*	can not change the current state of the lock by calling the ReadUnlock() function.
+*	This assures, that no process can unlock the read lock held by another process
+*/
 
+TEST(RwLock, UnlockReadByNoneReadLockHolder)
+{
+	std::string lockName = "UnlockReadByNoneReadLockHolderTest";
+
+	std::atomic<int> readLockHolderCount = 0;
+	std::atomic<int> readLockTimeoutCount = 0;
+
+	std::unique_lock<std::mutex> threadHoldGuard(threadHoldMutex);
+
+	std::thread lockHoldingReader([&] { readerHoldLockSerialized(lockName, readLockHolderCount, readLockTimeoutCount); });
+
+	while (readLockHolderCount + readLockTimeoutCount != 1) {}
+
+	if (readLockTimeoutCount == 1) {
+		std::cout << "WARNING: UnlockReadByNoneReadLockHolder test could not be run correctly due to issues in CNamedRwLock::LockRead() function" << std::endl;
+		return;
+	}
+
+	eCAL::CNamedRwLock rwLock(lockName);
+	bool unlockSuccess = rwLock.UnlockRead(TIMEOUT);
+
+	if (!unlockSuccess) {
+		std::cout << "WARNING: UnlockReadByNoneReadLockHolder test could not be run correctly due to issues in CNamedRwLock::UnlockRead() function" << std::endl;
+		return;
+	}
+
+	EXPECT_EQ(1, rwLock.GetReaderCount());
+
+	threadDone = true;
+	threadHoldGuard.unlock();
+	threadTerminateCond.notify_one();
+	lockHoldingReader.join();
+	threadDone = false;
+}
+
+/*
+*	This Test confirms that a process which is currently not holding the write lock,
+*	can not change the current state of the lock by calling the Unlock() function.
+*	This assures, that no process can unlock the write lock held by another process
+*/
+TEST(RwLock, UnlockWriteByNoneWriteLockHolder)
+{
+	std::string lockName = "UnlockWriteByNoneWriteLockHolderTest";
+
+	// feedback to see if writer could aquire lock
+	// -1 -> no feedback yet
+	//  0 -> failed
+	//  1 -> success
+	std::atomic<int> isLocked = -1;
+	
+	std::unique_lock<std::mutex> threadHoldGuard(threadHoldMutex);
+
+	std::thread lockHoldingWriter([&] { writerHoldLockSerialized(lockName, isLocked); });
+
+	while (isLocked == -1) {};
+
+	if (isLocked == 0) {
+		std::cerr << "WARNING: LockReadWhileWriteLocked test could not be run correctly due to issues in CNamedRwLock::LockWrite() function" << std::endl;
+		return;
+	}
+
+	eCAL::CNamedRwLock rwLock(lockName);
+	bool lockSuccess = rwLock.Lock(TIMEOUT);
+
+	EXPECT_TRUE(lockSuccess);
+
+	threadDone = true;
+	threadHoldGuard.unlock();
+	threadTerminateCond.notify_one();
+	lockHoldingWriter.join();
+	threadDone = false;
+
+}
+
+/*
+* This Test confirms that the read lock can still be aquired,
+* even tho other processes are holding the read lock currently
+*/
 TEST(RwLock, LockReadWhileReadLocked)
 {
 	std::string lockName = "LockReadWileReadLockedTest";
@@ -182,6 +271,10 @@ TEST(RwLock, LockReadWhileReadLocked)
 	threadDone = false;
 }
 
+/*
+* This Test confirms that a process which tries to aquire a read lock,
+* while another process currently holds the write lock, fails.
+*/
 TEST(RwLock, LockReadWhileWriteLocked)
 {
 	std::string lockName = "LockReadWhileReadLockedTest";
@@ -225,6 +318,10 @@ TEST(RwLock, LockReadWhileWriteLocked)
 	threadDone = false;
 }
 
+/*
+* This Test confirms that a process which tries to aquire the write lock,
+* while another process currently holds the write lock, fails.
+*/
 TEST(RwLock, LockWriteWhileWriteLocked)
 {
 	std::string lockName = "LockWriteWhileWriteLockedTest";
@@ -267,6 +364,10 @@ TEST(RwLock, LockWriteWhileWriteLocked)
 	threadDone = false;
 }
 
+/*
+* This Test confirms that a process which tries to aquire the write lock,
+* while one or more process currently hold a read lock, fails.
+*/
 TEST(RwLock, LockWriteWhileReadLocked)
 {
 	std::string lockName = "LockWriteWhileReadLockedTest";
@@ -307,7 +408,11 @@ TEST(RwLock, LockWriteWhileReadLocked)
 	threadDone = false;
 }
 
-
+/*
+* This test confirms that the locks which a process aquired,
+* will be implecitely released while the lock is destructed,
+* to prevent, that a forgotten Unlock call breaks the lock.
+*/
 TEST(RwLock, ImpliciteUnlockingAtDestruction)
 {
 	std::string lockName = "ImpliciteUnlockingAtDestructionTest";
@@ -360,6 +465,7 @@ TEST(RwLock, ImpliciteUnlockingAtDestruction)
 	threadDone = true;
 	threadHoldGuard.unlock();
 	threadTerminateCond.notify_one();
+	handleHoldingThread.join();
 	threadDone = false;
 }
 
@@ -370,21 +476,52 @@ TEST(RwLock, ImpliciteUnlockingAtDestruction)
 // thinks it was the first one to construct it and initializes it again, effectively reseting a in use lock. 
 TEST(RwLock, RobustLockConstruction)
 {
+	const int constructionCiclesCount = 10;
+	const int constructingProcessesCount = 100;
+
 
 }
 
-
+/*
+* This test confirms that ALL process waiting for a read lock,
+* while it is currently held by a writing processes,
+* are notified and thus woken up to aquire the lock,
+* as soon as the writing process finishes. 
+* In addition, no reader, which tries to aquire the lock while the readers are active,
+* should be put down to sleep because he missed the notification event.
+*/
 TEST(RwLock, WriterSignalsReaderWhenUnlocked)
 {
 
 }
 
+/*
+* This test confirms that a process waiting for a write lock,
+* while it is currently hold by one or multiple reading processes,
+* is notified and thus woken up to aquire the lock when all reading processes have finished.
+*/
 TEST(RwLock, ReaderSignalsWriterWhenUnlocked)
 {
 
 }
 
+/*
+* This test confirms that the lock does not guarantee fairness in any way,
+* meaning the lock can only be aquired when it is in a aquireable state
+* and there are no lock mechanisms that guarantee reader or writer,
+* to make the lock state aquireable for them.
+*/
 TEST(RwLock, NoFairnessGuarantee)
+{
+
+}
+
+/*
+* This test confirms that the lock does not break 
+*	and thus introduce inconsistency of the protected object,
+* under any kind of access frequency.
+*/
+TEST(RwLock, DoesNotBreakUnderHighUsage)
 {
 
 }
