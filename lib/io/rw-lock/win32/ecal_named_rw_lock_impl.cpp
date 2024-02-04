@@ -231,7 +231,7 @@ namespace eCAL
 			return false;
 
 		// dont change the lock state if the lock is not held by the caller 
-		if (m_holds_write_lock)
+		if (!m_holds_write_lock)
 			return false;
 
 		// no timeout could lead to deadlock! 
