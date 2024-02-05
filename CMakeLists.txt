@@ -22,3 +22,4 @@ add_subdirectory(performance_measuring)
 enable_testing()
 
 add_subdirectory(testing/lock_test)
+add_subdirectory(testing/metrics_calculation_test)
