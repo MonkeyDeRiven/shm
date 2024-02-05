@@ -8,15 +8,17 @@
 #include <atomic>
 #include <condition_variable>
 
+#include <Windows.h>
+
 // enables a thread to hold a lock till it is not needed anymore
 std::condition_variable threadTerminateCond;
 std::mutex threadHoldMutex;
 std::atomic<bool> threadDone = false;
 
 // timeout for the rw-lock operations
-const int64_t TIMEOUT = 20;
+const int64_t TIMEOUT = 200;
 
-void writerHoldLockSerialized(std::string& lockName, std::atomic<int>& feedback /* -1=not signaled, 0=fail, 1=success*/)
+void writerHoldLockSerialized(const std::string& lockName, std::atomic<int>& feedback /* -1=not signaled, 0=fail, 1=success*/)
 {
 	// create the rw-lock
 	eCAL::CNamedRwLock rwLock(lockName);
@@ -37,7 +39,7 @@ void writerHoldLockSerialized(std::string& lockName, std::atomic<int>& feedback 
 	rwLock.Unlock();
 }
 
-void readerHoldLockSerialized(std::string& lockName, std::atomic<int>& lockHolderCount, std::atomic<int>& lockTimeoutCounter)
+void readerHoldLockSerialized(const std::string& lockName, std::atomic<int>& lockHolderCount, std::atomic<int>& lockTimeoutCounter)
 {
 	// create the rw-lock
 	eCAL::CNamedRwLock rwLock(lockName);
@@ -58,7 +60,7 @@ void readerHoldLockSerialized(std::string& lockName, std::atomic<int>& lockHolde
 	//rwLock.UnlockRead(TIMEOUT);
 }
 
-void writerTryLock(std::string& lockName, std::atomic<bool>& success)
+void writerTryLock(const std::string& lockName, std::atomic<bool>& success)
 {
 	// create the rw-lock
 	eCAL::CNamedRwLock rwLock(lockName);
@@ -70,7 +72,7 @@ void writerTryLock(std::string& lockName, std::atomic<bool>& success)
 	}
 }
 
-void readerTryLock(std::string& lockName, std::atomic<bool>& success)
+void readerTryLock(const std::string& lockName, std::atomic<bool>& success)
 {
 	eCAL::CNamedRwLock rwLock(lockName);
 	// try to lock the file	within timeout period and write the result to success
@@ -81,7 +83,7 @@ void readerTryLock(std::string& lockName, std::atomic<bool>& success)
 	}
 }
 
-void holdHandle(std::string& lockName, std::atomic<bool>& holdingHandle)
+void holdHandle(const std::string& lockName, std::atomic<bool>& holdingHandle)
 {
 	eCAL::CNamedRwLock rwLock(lockName);
 	holdingHandle = true;
@@ -93,7 +95,7 @@ void holdHandle(std::string& lockName, std::atomic<bool>& holdingHandle)
 */
 TEST(RwLock, LockWrite)
 {
-	std::string lockName = "LockWriteTest";
+	const std::string lockName = "LockWriteTest";
 
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool lockSuccess = rwLock.Lock(TIMEOUT);
@@ -109,7 +111,7 @@ TEST(RwLock, LockWrite)
 */
 TEST(RwLock, LockRead)
 {
-	std::string lockName = "LockReadTest";
+	const std::string lockName = "LockReadTest";
 
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool lockSuccess = rwLock.LockRead(TIMEOUT);
@@ -125,7 +127,7 @@ TEST(RwLock, LockRead)
 */
 TEST(RwLock, UnlockWrite)
 {
-	std::string lockName = "UnlockWriteTest";
+	const std::string lockName = "UnlockWriteTest";
 
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool lockSuccess = rwLock.Lock(TIMEOUT);
@@ -142,7 +144,7 @@ TEST(RwLock, UnlockWrite)
 */
 TEST(RwLock, UnlockRead)
 {
-	std::string lockName = "UnlockReadTest";
+	const std::string lockName = "UnlockReadTest";
 
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool lockSuccess = rwLock.Lock(TIMEOUT);
@@ -163,7 +165,7 @@ TEST(RwLock, UnlockRead)
 
 TEST(RwLock, UnlockReadByNoneReadLockHolder)
 {
-	std::string lockName = "UnlockReadByNoneReadLockHolderTest";
+	const std::string lockName = "UnlockReadByNoneReadLockHolderTest";
 
 	std::atomic<int> readLockHolderCount = 0;
 	std::atomic<int> readLockTimeoutCount = 0;
@@ -182,12 +184,7 @@ TEST(RwLock, UnlockReadByNoneReadLockHolder)
 	eCAL::CNamedRwLock rwLock(lockName);
 	bool unlockSuccess = rwLock.UnlockRead(TIMEOUT);
 
-	if (!unlockSuccess) {
-		std::cout << "WARNING: UnlockReadByNoneReadLockHolder test could not be run correctly due to issues in CNamedRwLock::UnlockRead() function" << std::endl;
-		return;
-	}
-
-	EXPECT_EQ(1, rwLock.GetReaderCount());
+	EXPECT_EQ(1, rwLock.GetReaderCount()) << "Read lock was unlocked by non read lock holder!";
 
 	threadDone = true;
 	threadHoldGuard.unlock();
@@ -203,7 +200,7 @@ TEST(RwLock, UnlockReadByNoneReadLockHolder)
 */
 TEST(RwLock, UnlockWriteByNoneWriteLockHolder)
 {
-	std::string lockName = "UnlockWriteByNoneWriteLockHolderTest";
+	const std::string lockName = "UnlockWriteByNoneWriteLockHolderTest";
 
 	// feedback to see if writer could aquire lock
 	// -1 -> no feedback yet
@@ -218,14 +215,14 @@ TEST(RwLock, UnlockWriteByNoneWriteLockHolder)
 	while (isLocked == -1) {};
 
 	if (isLocked == 0) {
-		std::cerr << "WARNING: LockReadWhileWriteLocked test could not be run correctly due to issues in CNamedRwLock::LockWrite() function" << std::endl;
+		std::cout << "WARNING: LockReadWhileWriteLocked test could not be run correctly due to issues in CNamedRwLock::LockWrite() function" << std::endl;
 		return;
 	}
 
 	eCAL::CNamedRwLock rwLock(lockName);
-	bool lockSuccess = rwLock.Lock(TIMEOUT);
+	bool lockSuccess = rwLock.Unlock();
 
-	EXPECT_TRUE(lockSuccess);
+	EXPECT_FALSE(lockSuccess);
 
 	threadDone = true;
 	threadHoldGuard.unlock();
@@ -241,7 +238,7 @@ TEST(RwLock, UnlockWriteByNoneWriteLockHolder)
 */
 TEST(RwLock, LockReadWhileReadLocked)
 {
-	std::string lockName = "LockReadWileReadLockedTest";
+	const std::string lockName = "LockReadWileReadLockedTest";
 
 	int parallelReaderCount = 10;
 	std::atomic<int> readLockHolderCount = 0;
@@ -277,7 +274,7 @@ TEST(RwLock, LockReadWhileReadLocked)
 */
 TEST(RwLock, LockReadWhileWriteLocked)
 {
-	std::string lockName = "LockReadWhileReadLockedTest";
+	const std::string lockName = "LockReadWhileReadLockedTest";
 	std::atomic<bool> success;
 
 	// feedback to see if writer could aquire lock
@@ -324,7 +321,7 @@ TEST(RwLock, LockReadWhileWriteLocked)
 */
 TEST(RwLock, LockWriteWhileWriteLocked)
 {
-	std::string lockName = "LockWriteWhileWriteLockedTest";
+	const std::string lockName = "LockWriteWhileWriteLockedTest";
 	std::atomic<bool> success;
 
 	// feedback to see if writer could aquire lock
@@ -370,7 +367,7 @@ TEST(RwLock, LockWriteWhileWriteLocked)
 */
 TEST(RwLock, LockWriteWhileReadLocked)
 {
-	std::string lockName = "LockWriteWhileReadLockedTest";
+	const std::string lockName = "LockWriteWhileReadLockedTest";
 	std::atomic<bool> success;
 
 	std::atomic<int> readLockHolderCount = 0;
@@ -415,7 +412,7 @@ TEST(RwLock, LockWriteWhileReadLocked)
 */
 TEST(RwLock, ImpliciteUnlockingAtDestruction)
 {
-	std::string lockName = "ImpliciteUnlockingAtDestructionTest";
+	const std::string lockName = "ImpliciteUnlockingAtDestructionTest";
 
 	// we need to create a thrad which holds a handle to the object during the whole test.
 	// Otherwise the OS will remove the shm when the lock goes out of scope and 
@@ -469,6 +466,34 @@ TEST(RwLock, ImpliciteUnlockingAtDestruction)
 	threadDone = false;
 }
 
+void useWriteLock(const std::string& lockName, int& sharedCounter, const int& incrementCount) 
+{
+	eCAL::CNamedRwLock rwLock(lockName);
+
+	if (rwLock.Lock(INFINITE)) {
+		for (int i = 0; i < incrementCount; i++)
+			sharedCounter++;
+		rwLock.Unlock();
+	}
+}
+
+void useReadLock(const std::string& lockName, int& sharedCounter, const int& readCicleCount, std::vector<bool>& readConsistentResults, int& index)
+{
+	eCAL::CNamedRwLock rwLock(lockName);
+	if (rwLock.LockRead(TIMEOUT)) {
+		// make a copy of shared counter value
+		int counterValue = sharedCounter;
+		for (int i = 0; i < readCicleCount; i++) {
+			// check if the shared Counter value changes
+			if (counterValue != sharedCounter)
+				// if the shared counter changes the value was modified while a read lock was held
+				readConsistentResults[index] = false;
+		}
+		rwLock.UnlockRead(TIMEOUT);
+	}
+}
+
+#include <chrono>
 // Checks if the lock can not become inconsistent if many processes try to construct it at the same time.
 // For example when a thread goes to sleep during the construction process, gets put to sleep, another
 // thread constructs the lock and initialises the state. Afterwards the lock gets used by one or more
@@ -476,9 +501,32 @@ TEST(RwLock, ImpliciteUnlockingAtDestruction)
 // thinks it was the first one to construct it and initializes it again, effectively reseting a in use lock. 
 TEST(RwLock, RobustLockConstruction)
 {
-	const int constructionCiclesCount = 10;
-	const int constructingProcessesCount = 100;
+	int testDurationMs = 1000;
+	std::cout << "INFO: The test duration is set to " << testDurationMs / 1000 << "sec" << std::endl;
+	const std::string lockName = "RobustLockConstructionTest";
+	//const int constructionCiclesCount = 3000;
+	const int constructingProcessesCount = 2;
+	const int incrementSharedCounterCount = 10;
 
+	std::vector<std::thread> threadHandles;
+
+	// start time in ms
+	auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	auto endTime = startTime;
+	//for (int i = 0; i < constructionCiclesCount; i++) {
+	while(endTime - startTime < testDurationMs){
+		int sharedCounter = 0;
+		std::unique_lock<std::mutex> threadHoldGuard(threadHoldMutex);
+		for (int i = 0; i < constructingProcessesCount; i++) {
+			threadHandles.push_back(std::thread([&] { useWriteLock(lockName, sharedCounter, incrementSharedCounterCount); }));
+		}
+		for (auto& thread : threadHandles) {
+			thread.join();
+		}
+		EXPECT_EQ(constructingProcessesCount * incrementSharedCounterCount, sharedCounter);
+		threadHandles.clear();
+		endTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	}
 
 }
 
@@ -488,10 +536,82 @@ TEST(RwLock, RobustLockConstruction)
 * are notified and thus woken up to aquire the lock,
 * as soon as the writing process finishes. 
 * In addition, no reader, which tries to aquire the lock while the readers are active,
-* should be put down to sleep because he missed the notification event.
+* should be put down to sleep because it missed the notification event.
 */
 TEST(RwLock, WriterSignalsReaderWhenUnlocked)
 {
+	std::string lockName = "WriterSignalsReaderWhenUnlockedTest";
+	int waitingReaderCount = 1000;
+
+	// lock holding writer feedback
+	// -1 -> no feedback yet
+	//  0 -> failed
+	//  1 -> success
+	std::atomic<int> isLocked = -1;
+
+	std::atomic<bool> success = false;
+
+	// waiting reader feedback
+	std::atomic<int> readLockHolderCount = 0;
+	std::atomic<int> readLockTimeoutCount = 0;
+
+	std::thread lockHoldingWriter;
+	std::vector<std::thread> waitingReaders;
+
+	// reader which misses the initial event
+	std::thread lateReader;
+	// this writer competes against the late reader for the lock access
+	// expected behavior is that the writer should get the access first everytime
+	// because the late reader tries to access the lock while other readers have it
+	// and thus the lock should not refuse the valid access of the late reader
+	std::thread competingWriter;
+	{
+		std::unique_lock<std::mutex> threadDoneGuard(threadHoldMutex);
+
+		// writer holds lock
+		lockHoldingWriter = std::thread([&] { writerHoldLockSerialized(lockName, isLocked); });
+
+		// busy wait till writer aquired the lock or failed
+		while (isLocked == -1) {};
+
+		// test cannot be run correctly if reader does not hold the lock
+		if (isLocked == 0) {
+			std::cout << "WARNING: WriterSignalsReaderWhenUnlocked test could not be run correctly due to issues in CNamedRwLock::LockWrite() function" << std::endl;
+			return;
+		}
+
+		// create waiting reader
+		for (int i = 0; i < waitingReaderCount; i++) {
+			waitingReaders.push_back(std::thread([&] { readerTryLock(lockName, success); }));
+		}
+	}
+	// make writer release the lock
+	threadDone = true;
+	threadTerminateCond.notify_all();
+	lockHoldingWriter.join();
+	threadDone = false;
+	// write lock is now released and waiting readers are working
+	{
+		std::unique_lock<std::mutex> threadDoneGuard(threadHoldMutex);
+		// time to spawn a late Reader and see if he beats the writer for the access
+		lateReader = std::thread([&] { readerHoldLockSerialized(lockName, readLockHolderCount, readLockTimeoutCount); });
+		// now spawn the competing writer
+		competingWriter = std::thread([&] { writerHoldLockSerialized(lockName, isLocked); });
+
+		for (auto& thread : waitingReaders) {
+			thread.join();
+		}
+
+		// the winner of the access competition should now hold the lock,
+		// while the loser waits for the lock so we check if the reader won
+		EXPECT_EQ(1, readLockHolderCount);
+	}
+
+	threadDone = true;
+	threadTerminateCond.notify_all();
+	lateReader.join();
+	competingWriter.join();
+	threadDone = false;
 
 }
 
@@ -502,7 +622,50 @@ TEST(RwLock, WriterSignalsReaderWhenUnlocked)
 */
 TEST(RwLock, ReaderSignalsWriterWhenUnlocked)
 {
+	std::string lockName = "ReaderSignalsWriterWhenUnlockedTest";
 
+	// lock holding reader feedback
+	std::atomic<int> readLockHolderCount = 0;
+	std::atomic<int> readLockTimeoutCount = 0;
+
+	// waiting writer feedback
+	// -1 -> no feedback yet
+	//  0 -> failed
+	//  1 -> success
+	std::atomic<int> isLocked = -1;
+
+	std::thread lockHoldingWriter;
+	std::thread waitingWriter;
+	{
+		std::unique_lock<std::mutex> threadHoldGuard(threadHoldMutex);
+
+		// writer holds lock
+		lockHoldingWriter = std::thread([&] { readerHoldLockSerialized(lockName, readLockHolderCount, readLockTimeoutCount); });
+
+		// busy wait till reader aquired the lock or failed
+		while (readLockHolderCount + readLockTimeoutCount != 1) {}
+
+		// test cannot be run correctly if reader does not hold the lock
+		if (readLockTimeoutCount == 1) {
+			std::cout << "WARNING: LockWriteWhileReadLocked test could not be run correctly due to issues in CNamedRwLock::LockRead() function" << std::endl;
+			return;
+		}
+
+		// we need a writer which waits for the lock
+		waitingWriter = std::thread([&] { writerHoldLockSerialized(lockName, isLocked); });
+
+		// make sure that the writer is really waiting
+	  // not a 100% guarantee
+		std::this_thread::sleep_for(std::chrono::milliseconds(1));
+	}
+	
+	threadDone = true;
+	threadTerminateCond.notify_all();
+	lockHoldingWriter.join();
+	waitingWriter.join();
+	threadDone = false;
+
+	EXPECT_TRUE(isLocked);
 }
 
 /*
@@ -516,14 +679,100 @@ TEST(RwLock, NoFairnessGuarantee)
 
 }
 
+void runRobustnessTest(std::string lockName, int writerCount, int readerCount, int iterations, int readWriteCicles) 
+{
+	// the counter which should not become inconsistent during the lock usage
+	int sharedCounter = 0;
+
+	std::vector<std::thread> readerThreads;
+	// the amount of times a reader shold check the counter
+	const int readCicleCount = 5;
+	std::vector<std::thread> writerThreads;
+	// the amount of times a writer should increment the Counter
+	int incrementCount = 10;
+
+	// every reader gets a vector entry for its consistency result
+	std::vector<bool> readConsistentResults(readerCount, true);
+
+	for (int i = 0; i < iterations; i++) {
+		for (int j = 0; j < readWriteCicles; j++) {
+			std::cout << "iteration: " << i << " " << "cicle: " << j << std::flush;
+			std::cout << '\r';
+			// create writers
+			for (int k = 0; k < writerCount; k++)
+				writerThreads.push_back(std::thread([&] { useWriteLock(lockName, sharedCounter, incrementCount); }));
+			// create readers
+			for (int k = 0; k < readerCount; k++)
+				readerThreads.push_back(std::thread([&] { useReadLock(lockName, sharedCounter, readCicleCount, readConsistentResults, k); }));
+			// wait for writers
+			for (auto& thread : writerThreads)
+				thread.join();
+			// wait for readers
+			for (auto& thread : readerThreads)
+				thread.join();
+			// check if all read accesses where consistent
+			for (auto consistent : readConsistentResults)
+				ASSERT_TRUE(consistent) << "Writer was active during a read access";
+			// check if shared counter became inconsistent
+			int expectedCounterValue = writerCount * incrementCount;
+			ASSERT_EQ(expectedCounterValue, sharedCounter) << "Two or more write accesses must have happened at the same time";
+			// clear all handles
+			readerThreads.clear();
+			writerThreads.clear();
+			// reset shared counter
+			sharedCounter = 0;
+		}
+	}
+}
+
 /*
-* This test confirms that the lock does not break 
+* The following tests confirmthat the lock does not break 
 *	and thus introduce inconsistency of the protected object,
 * under any kind of access frequency.
 */
-TEST(RwLock, DoesNotBreakUnderHighUsage)
+TEST(RwLock, DoesNotBreakUnderHighReadUsage)
 {
+	const std::string lockName = "DoesNotBreakUnderHighReadUsageTest";
+
+	int readerCount = 2000; 
+	int writerCount = 10;
+
+	int iterations = 10;
+	int readWriteCicles = 20;
+
+	std::cout << "this test will run for " << iterations << " iterations with " << readWriteCicles << " read/write cicles." << std::endl;
+	runRobustnessTest(lockName, writerCount, readerCount, iterations, readWriteCicles);
 
 }
+
+TEST(RwLock, DoesNotBreakUnderHighWriteUsage)
+{
+	const std::string lockName = "DoesNotBreakUnderHighWriteUsageTest";
+
+	int readerCount = 10;
+	int writerCount = 1000;
+
+	int iterations = 10;
+	int readWriteCicles = 20;
+
+	std::cout << "this test will run for " << iterations << "iterations with " << readWriteCicles << " read/write cicles." << std::endl;
+	runRobustnessTest(lockName, writerCount, readerCount, iterations, readWriteCicles);
+
+}
+
+TEST(RwLock, DoesNotBreakUnderHighReadAndWriteUsage)
+{
+	const std::string lockName = "DoesNotBreakUnderHighReadUsageTest";
+
+	int readerCount = 500;
+	int writerCount = 500;
+
+	int iterations = 10;
+	int readWriteCicles = 20;
+
+	std::cout << "this test will run for " << iterations << " with " << readWriteCicles << "read/write cicles." << std::endl;
+	runRobustnessTest(lockName, writerCount, readerCount, iterations, readWriteCicles);
+}
+
 
 
