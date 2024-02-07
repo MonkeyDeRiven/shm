@@ -7,7 +7,7 @@ find_package(GTest REQUIRED)
 add_executable(metrics_calculation_test ${CMAKE_CURRENT_SOURCE_DIR}/src/metrics_calculation_test.cpp)
 
 target_include_directories(metrics_calculation_test PRIVATE ${GTEST_INCLUDE_DIRS})
-target_link_libraries(metrics_calculation_test PRIVATE performance_test shm GTest::gtest GTest::gtest_main)
+target_link_libraries(metrics_calculation_test PRIVATE performance_test GTest::gtest GTest::gtest_main protobuf::libprotobuf)
 
 add_test(
     NAME              metricsTest
