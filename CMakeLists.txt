@@ -16,9 +16,11 @@ endif ()
 include(protoc_generate_cpp.cmake)
 
 add_subdirectory(lib)
+add_subdirectory(performance_test)
 add_subdirectory(performance_measuring)
 
 # unit tests
 enable_testing()
 
 add_subdirectory(testing/lock_test)
+add_subdirectory(testing/metrics_calculation_test)

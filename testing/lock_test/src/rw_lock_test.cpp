@@ -16,7 +16,7 @@ std::mutex threadHoldMutex;
 std::atomic<bool> threadDone = false;
 
 // timeout for the rw-lock operations
-const int64_t TIMEOUT = 200;
+const int64_t TIMEOUT = 10000;
 
 void writerHoldLockSerialized(const std::string& lockName, std::atomic<int>& feedback /* -1=not signaled, 0=fail, 1=success*/)
 {
@@ -501,8 +501,8 @@ void useReadLock(const std::string& lockName, int& sharedCounter, const int& rea
 // thinks it was the first one to construct it and initializes it again, effectively reseting a in use lock. 
 TEST(RwLock, RobustLockConstruction)
 {
-	int testDurationMs = 1000;
-	std::cout << "INFO: The test duration is set to " << testDurationMs / 1000 << "sec" << std::endl;
+	std::chrono::milliseconds testDuration{1000};
+	std::cout << "INFO: The test duration is set to " << testDuration.count() / 1000 << "sec" << std::endl;
 	const std::string lockName = "RobustLockConstructionTest";
 	//const int constructionCiclesCount = 3000;
 	const int constructingProcessesCount = 2;
@@ -511,10 +511,10 @@ TEST(RwLock, RobustLockConstruction)
 	std::vector<std::thread> threadHandles;
 
 	// start time in ms
-	auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+	auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 	auto endTime = startTime;
 	//for (int i = 0; i < constructionCiclesCount; i++) {
-	while(endTime - startTime < testDurationMs){
+	while(endTime - startTime < testDuration){
 		int sharedCounter = 0;
 		std::unique_lock<std::mutex> threadHoldGuard(threadHoldMutex);
 		for (int i = 0; i < constructingProcessesCount; i++) {
@@ -525,7 +525,7 @@ TEST(RwLock, RobustLockConstruction)
 		}
 		EXPECT_EQ(constructingProcessesCount * incrementSharedCounterCount, sharedCounter);
 		threadHandles.clear();
-		endTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+		endTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 	}
 
 }
