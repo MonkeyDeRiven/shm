@@ -121,7 +121,7 @@ namespace
   bool named_rw_lock_lock_read(named_rw_lock_t* rwl_)
   {
     // wait for read access
-    // block till lock is released by writer process
+    // block untill lock is released by writer process
     pthread_rwlock_rdlock(&rwl_->rw_lock);
     // return true when lock was aquired
     return true;
@@ -133,7 +133,7 @@ namespace
     if (pthread_rwlock_tryrdlock(&rwl_->rw_lock) == 0)
       // return true if access is granted imediately
       return true;
-    // return false if access was not granted imediately
+    // return false if access was not granted immediately
     return false;
   }
 
@@ -262,7 +262,34 @@ namespace eCAL
 
   bool CNamedRwLockImpl::LockRead(int64_t timeout_)
   {
-    return false;
+    // check mutex handle
+    if (m_rw_lock_handle == nullptr)
+      return false;
+
+    // timeout_ < 0 -> wait infinite
+    if (timeout_ < 0)
+    {
+      return(named_rw_lock_lock_read(m_rw_lock_handle));
+    }
+    // timeout_ == 0 -> check lock state only
+    else if (timeout_ == 0)
+    {
+      return(named_rw_lock_trylock_read(m_rw_lock_handle));
+    }
+    // timeout_ > 0 -> wait timeout_ ms
+    else
+    {
+      struct timespec abstime;
+      clock_gettime(CLOCK_MONOTONIC, &abstime);
+
+      abstime.tv_sec = abstime.tv_sec + timeout_ / 1000;
+      abstime.tv_nsec = abstime.tv_nsec + (timeout_ % 1000) * 1000000;
+      while (abstime.tv_nsec >= 1000000000)
+      {
+        abstime.tv_nsec -= 1000000000;
+        abstime.tv_sec++;
+      }
+      return(named_rw_lock_timedlock_read(m_rw_lock_handle, abstime));
   }
 
   bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
@@ -303,7 +330,7 @@ namespace eCAL
     }
   }
 
-  void CNamedRwLockImpl::Unlock()
+  bool CNamedRwLockImpl::Unlock()
   {
     // check mutex handle
     if(m_rw_lock_handle == nullptr)
