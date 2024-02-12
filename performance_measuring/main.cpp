@@ -76,7 +76,9 @@ int main()
 	std::string testResultFileName = "eCAL_base_lock_test";
 
 	//run tests with mutex lock
-	//runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
+	runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
+
+	testResultFileName = "thesis_rw_lock_non_recoverable_test";
 
 	//run tests with rw lock
 	runTests(testResultFileName, eCAL::CMemoryFile::lock_type::rw_lock);
@@ -88,29 +90,23 @@ std::vector<TestCaseZeroCopy> createTestCasesZeroCopy()
 {
 	auto testCases = std::vector<TestCaseZeroCopy>();
 
-	//one sub
-	//testCases.push_back(TestCaseZeroCopy(1, 1, 10, 1));
-	//testCases.push_back(TestCaseZeroCopy(1, 1, 10, 10));
-	//testCases.push_back(TestCaseZeroCopy(1, 1, 10, 100));
-	//testCases.push_back(TestCaseZeroCopy(1, 1, 10, 1000));
-
-	//three subs
+	// 1ms calculation time
+	testCases.push_back(TestCaseZeroCopy(1, 1, 10, 1));
 	testCases.push_back(TestCaseZeroCopy(3, 1, 10, 1));
+	testCases.push_back(TestCaseZeroCopy(5, 1, 10, 1));
+	testCases.push_back(TestCaseZeroCopy(10, 1, 10, 1));
+
+	// 10ms calculation time
+	testCases.push_back(TestCaseZeroCopy(1, 1, 10, 10));
 	testCases.push_back(TestCaseZeroCopy(3, 1, 10, 10));
-	//testCases.push_back(TestCaseZeroCopy(3, 1, 10, 100));
-	//testCases.push_back(TestCaseZeroCopy(3, 1, 10, 1000));
+	testCases.push_back(TestCaseZeroCopy(5, 1, 10, 10));
+	testCases.push_back(TestCaseZeroCopy(10, 1, 10, 10));
 
-	//five subs
-	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 1));
-	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 10));
-	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 100));
-	//testCases.push_back(TestCaseZeroCopy(5, 1, 10, 1000));
-
-	//ten subs
-	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 1));
-	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 10));
-	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 100));
-	//testCases.push_back(TestCaseZeroCopy(10, 1, 10, 1000));
+	// 100ms calculation time
+	testCases.push_back(TestCaseZeroCopy(1, 1, 10, 100));
+	testCases.push_back(TestCaseZeroCopy(3, 1, 10, 100));
+	testCases.push_back(TestCaseZeroCopy(5, 1, 10, 100));
+	testCases.push_back(TestCaseZeroCopy(10, 1, 10, 100));
 
 	return testCases;
 }
@@ -118,30 +114,24 @@ std::vector<TestCaseZeroCopy> createTestCasesZeroCopy()
 std::vector<TestCaseCopy> createTestCasesCopy()
 {
 	auto testCases = std::vector<TestCaseCopy>();
-	//one sub
+
+	// 100 Byte payload
 	testCases.push_back(TestCaseCopy(1, 1, 10, 1));
+	testCases.push_back(TestCaseCopy(3, 1, 10, 1));
+	testCases.push_back(TestCaseCopy(5, 1, 10, 1));
+	testCases.push_back(TestCaseCopy(10, 1, 10, 1));
+
+	// 1 Kb
 	testCases.push_back(TestCaseCopy(1, 1, 10, 1000));
+	testCases.push_back(TestCaseCopy(3, 1, 10, 1000));
+	testCases.push_back(TestCaseCopy(5, 1, 10, 1000));
+	testCases.push_back(TestCaseCopy(10, 1, 10, 1000));
+
+	// 1 Mb
 	testCases.push_back(TestCaseCopy(1, 1, 10, 1000000));
-	testCases.push_back(TestCaseCopy(1, 1, 10, 1000000000));
-
-	//three subs
-	//testCases.push_back(TestCaseCopy(3, 1, 10, 1));
-	//testCases.push_back(TestCaseCopy(3, 1, 10, 1000));
-	//testCases.push_back(TestCaseCopy(3, 1, 10, 1000000));
-	//testCases.push_back(TestCaseCopy(3, 1, 10, 1000000000));
-
-	//five subs
-	//testCases.push_back(TestCaseCopy(5, 1, 10, 1));
-	//testCases.push_back(TestCaseCopy(5, 1, 10, 1000));
-	//testCases.push_back(TestCaseCopy(5, 1, 10, 1000000));
-	//testCases.push_back(TestCaseCopy(5, 1, 10, 1000000000));
-
-	//ten subs
-	//testCases.push_back(TestCaseCopy(10, 1, 10, 1));
-	//testCases.push_back(TestCaseCopy(10, 1, 10, 1000));
-	//testCases.push_back(TestCaseCopy(10, 1, 10, 1000000));
-	//testCases.push_back(TestCaseCopy(10, 1, 10, 1000000000));
-
+	testCases.push_back(TestCaseCopy(3, 1, 10, 1000000));
+	testCases.push_back(TestCaseCopy(5, 1, 10, 1000000));
+	testCases.push_back(TestCaseCopy(10, 1, 10, 1000000));
 
 	return testCases;
 }

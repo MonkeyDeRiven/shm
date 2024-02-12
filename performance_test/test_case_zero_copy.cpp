@@ -32,7 +32,7 @@ shm::TestCaseZeroCopy_pb TestCaseZeroCopy::getPbTestCaseMessage(bool rawData)
 
 	metrics->set_totalduration(this->totalDuration);
 	metrics->set_totallocktime(this->totalLockTime);
-	metrics->set_totalsubcriberlocktime(this->totalSubcriberLockTime);
+	metrics->set_totalsubscriberlocktime(this->totalSubcriberLockTime);
 
 	metrics->set_avgiterationduration(this->avgIterationDuration);
 	metrics->set_maxiterationduration(this->maxIterationDuration);

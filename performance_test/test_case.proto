@@ -38,7 +38,7 @@ message TestCaseZeroCopy_pb {
 message Metrics {
 	int64 totalDuration = 1;
 	int64 totalLockTime = 2;
-	int64 totalSubcriberLockTime = 3;
+	int64 totalSubscriberLockTime = 3;
 
 	float avgIterationDuration = 4;
     int64 maxIterationDuration = 5;
