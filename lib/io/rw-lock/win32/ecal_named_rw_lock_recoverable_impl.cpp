@@ -21,13 +21,13 @@
  * @brief  eCAL named rw-lock
 **/
 
-#include "ecal_named_rw_lock_impl.h"
+#include "ecal_named_rw_lock_recoverable_impl.h"
 
 #include "ecal_win_main.h"
 #include <iostream>
 namespace eCAL
 {
-	CNamedRwLockImpl::CNamedRwLockImpl(const std::string& name_, bool recoverable_) : m_mutex_handle(nullptr), m_holds_read_lock(false), m_holds_write_lock(false)
+	CNamedRwLockRecoverableImpl::CNamedRwLockRecoverableImpl(const std::string& name_, bool recoverable_) : m_mutex_handle(nullptr), m_holds_read_lock(false), m_holds_write_lock(false)
 	{
 		// create mutex
 		const std::string writer_mutex_name = name_ + "_mtx";
@@ -62,7 +62,7 @@ namespace eCAL
 
 		if (m_shm_handle == nullptr)
 			throw SHMException();
-		
+
 		// if this is the first call of CreateFileMapping
 		if (GetLastError() != ERROR_ALREADY_EXISTS) {
 			// map lock state struct into the newly allocated shared memory
@@ -75,7 +75,7 @@ namespace eCAL
 		m_lock_state = (state*)MapViewOfFile(m_shm_handle, PAGE_READONLY, 0, 0, sizeof(state));
 	}
 
-	CNamedRwLockImpl::~CNamedRwLockImpl()
+	CNamedRwLockRecoverableImpl::~CNamedRwLockRecoverableImpl()
 	{
 		// check read lock
 		if (m_holds_read_lock)
@@ -104,43 +104,43 @@ namespace eCAL
 		}
 	}
 
-	bool CNamedRwLockImpl::IsCreated() const
+	bool CNamedRwLockRecoverableImpl::IsCreated() const
 	{
 		return m_mutex_handle != nullptr && m_event_handle != nullptr;
 	}
 
-	bool CNamedRwLockImpl::IsRecoverable() const
+	bool CNamedRwLockRecoverableImpl::IsRecoverable() const
 	{
 		return false;
 	}
 
-	bool CNamedRwLockImpl::WasRecovered() const
+	bool CNamedRwLockRecoverableImpl::WasRecovered() const
 	{
 		return false;
 	}
 
-	bool CNamedRwLockImpl::HasOwnership() const
+	bool CNamedRwLockRecoverableImpl::HasOwnership() const
 	{
 		return false;
 	}
 
-	void CNamedRwLockImpl::DropOwnership()
+	void CNamedRwLockRecoverableImpl::DropOwnership()
 	{
 	}
 
-	int CNamedRwLockImpl::GetReaderCount()
+	int CNamedRwLockRecoverableImpl::GetReaderCount()
 	{
 		return m_lock_state->reader_count;
 	}
 
-	bool CNamedRwLockImpl::LockRead(int64_t timeout_)
+	bool CNamedRwLockRecoverableImpl::LockRead(int64_t timeout_)
 	{
 		if (!IsCreated())
 			return false;
 
 		// lock mutex
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
-		if (result == WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
+		if (result == WAIT_OBJECT_0) {
 			// check if the writer is active
 			if (m_lock_state->writer_active) {
 				// unlock the mutex to allow writer to unlock the rw-lock while waiting 
@@ -154,7 +154,7 @@ namespace eCAL
 				// lock the mutex again, because the locking process is not done yet
 				result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 				// check if mutex was locked before timeout
-				if (result != WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
+				if (result != WAIT_OBJECT_0) {
 					return false;
 				}
 			}
@@ -167,7 +167,7 @@ namespace eCAL
 		return false;
 	}
 
-	bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
+	bool CNamedRwLockRecoverableImpl::UnlockRead(int64_t timeout_)
 	{
 		if (!IsCreated())
 			return false;
@@ -178,7 +178,7 @@ namespace eCAL
 
 		// lock mutex
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
-		if (result == WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
+		if (result == WAIT_OBJECT_0) {
 			// release reader lock
 			m_lock_state->reader_count--;
 			if (m_lock_state->reader_count == 0) {
@@ -192,13 +192,13 @@ namespace eCAL
 		return false;
 	}
 
-	bool CNamedRwLockImpl::Lock(int64_t timeout_)
+	bool CNamedRwLockRecoverableImpl::Lock(int64_t timeout_)
 	{
 		if (!IsCreated())
 			return false;
 
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
-		if (result == WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
+		if (result == WAIT_OBJECT_0) {
 			// check if any reader is active
 			if (m_lock_state->reader_count > 0 || m_lock_state->writer_active) {
 				// release mutex to allow readers to unlock while waiting
@@ -212,7 +212,7 @@ namespace eCAL
 				// lock the mutex again, because the locking process is not done yet
 				result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 				// check if mutex was locked before timeout
-				if (result != WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
+				if (result != WAIT_OBJECT_0) {
 					return false;
 				}
 			}
@@ -225,7 +225,7 @@ namespace eCAL
 		return false;
 	}
 
-	bool CNamedRwLockImpl::Unlock()
+	bool CNamedRwLockRecoverableImpl::Unlock()
 	{
 		if (!IsCreated())
 			return false;
