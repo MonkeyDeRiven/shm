@@ -1,4 +1,5 @@
 #include "metric_calculator.h"
+#include "metric_calculator.h"
 #include <algorithm>
 #include <numeric>
 
@@ -42,7 +43,7 @@ std::vector<long long> MetricCalculator::getSubscriberLockTimes(std::vector<std:
 {
 	std::vector<long long> lockTimes;
 	for (int i = 0; i < subAfterReleaseTimes[0].size() ; i++) {
-		lockTimes.push_back(getMaxTime(getIterationTimes(subAfterAccessTimes, i)) - getMinTime(getIterationTimes(subAfterReleaseTimes, i)));
+		lockTimes.push_back(getMaxTime(getIterationTimes(subAfterReleaseTimes, i)) - getMinTime(getIterationTimes(subAfterAccessTimes, i)));
 	}
 	return lockTimes;
 }
@@ -63,6 +64,16 @@ std::vector<long long> MetricCalculator::getIterationDurations(std::vector<long 
 		durations.push_back(getMaxTime(getIterationTimes(subAfterReleaseTimes, i)) - pubAfterAccessTimes[i]);
 	}
 	return durations;
+}
+
+long long MetricCalculator::getTotalLockTime(std::vector<std::vector<long long>>& subAfterAccessTimes, std::vector<std::vector<long long>>& subAfterReleaseTimes, std::vector<long long>& pubAfterAccessTimes, std::vector<long long>& pubAfterReleaseTimes)
+{
+	long long totalSubLockTime = getTotalSubscriberLockTime(subAfterAccessTimes, subAfterReleaseTimes);
+	long long totalPubLockTime = 0;
+	for (int i = 0; i < pubAfterAccessTimes.size(); i++) {
+		totalPubLockTime += pubAfterReleaseTimes[i] - pubAfterAccessTimes[i];
+	}
+	return totalSubLockTime + totalPubLockTime;
 }
 
 std::vector<long long> MetricCalculator::getLatencies(std::vector<long long>& beforeAccessTimes, std::vector<long long>& afterAccessTimes)
@@ -89,16 +100,6 @@ std::vector<std::vector<long long>> MetricCalculator::getLatencies(std::vector<s
 long long MetricCalculator::getTotalDuration(std::vector<std::vector<long long>>& subAfterReleaseTimes)
 {
 	return getMaxTime(getIterationTimes(subAfterReleaseTimes, subAfterReleaseTimes[0].size() - 1));
-}
-
-long long MetricCalculator::getTotalLockTime(std::vector<long long>& subLockTimes, std::vector<long long>& pubAfterAccessTimes, std::vector<long long>& pubAfterReleaseTimes)
-{
-	long long totalSubLockTime = std::accumulate(subLockTimes.begin(), subLockTimes.end(), 0LL);
-	long long totalPubLockTime = 0;
-	for (int i = 0; i < pubAfterAccessTimes.size(); i++) {
-		totalPubLockTime += pubAfterReleaseTimes[i] - pubAfterAccessTimes[i];
-	}
-	return totalSubLockTime + totalPubLockTime;
 }
 
 long long MetricCalculator::getTotalSubscriberLockTime(std::vector<std::vector<long long>>& subAfterAccessTimes, std::vector<std::vector<long long>>& subAfterReleaseTimes)

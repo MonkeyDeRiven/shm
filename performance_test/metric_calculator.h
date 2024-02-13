@@ -16,8 +16,7 @@ public:
 	std::vector<long long> getIterationLockTimes(std::vector<long long>& subscriberLockTimes, std::vector<long long>& pubAfterAccessTimes, std::vector<long long>& pubAfterReleaseTimes);
 	std::vector<long long> getIterationDurations(std::vector<long long>& pubAfterAccessTimes, std::vector<std::vector<long long>>& subAfterReleaseTimes);
 
-	long long getTotalLockTime(std::vector<long long>& subscriberLockTimes, std::vector<long long>& pubAfterAccessTimes, std::vector<long long>& pubAfterReleaseTimes);
-
+	long long getTotalLockTime(std::vector<std::vector<long long>>& subAfterAccessTimes, std::vector<std::vector<long long>>& subAfterReleaseTimes, std::vector<long long>& pubAfterAccessTimes, std::vector<long long>& pubAfterReleaseTimes);
 	long long getTotalSubscriberLockTime(std::vector<std::vector<long long>>& subAfterAccessTimes, std::vector<std::vector<long long>>& subAfterReleaseTimes);
 
 	std::vector<long long> getLatencies(std::vector<long long>& beforeAccessTimes, std::vector<long long>& afterAccessTimes);
