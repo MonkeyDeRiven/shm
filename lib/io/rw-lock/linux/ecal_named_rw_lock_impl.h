@@ -48,8 +48,8 @@ namespace eCAL
 
     void DropOwnership() final;
 
-    bool LockRead(int64_t timeout_);
-    bool UnlockRead(int64_t timeout_);
+    bool LockRead(int64_t timeout_) final;
+    bool UnlockRead(int64_t timeout_) final;
     bool Lock(int64_t timeout_) final;
     bool Unlock() final;
   private:

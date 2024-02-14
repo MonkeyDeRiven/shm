@@ -1,17 +1,16 @@
 #include "metric_calculator.h"
-#include "metric_calculator.h"
 #include <algorithm>
 #include <numeric>
 
-float MetricCalculator::getAvgTime(std::vector<long long>& times)
+float MetricCalculator::getAvgTime(const std::vector<long long>& times)
 {
-	return std::accumulate(times.begin(), times.end(), 0LL) / float(times.size());
+	return float(std::accumulate(times.begin(), times.end(), 0LL)) / float(times.size());
 }
-long long MetricCalculator::getMaxTime(std::vector<long long>& times)
+long long MetricCalculator::getMaxTime(const std::vector<long long>& times)
 {
 	return *std::max_element(times.begin(), times.end());
 }
-long long MetricCalculator::getMinTime(std::vector<long long>& times)
+long long MetricCalculator::getMinTime(const std::vector<long long>& times)
 {
 	return *std::min_element(times.begin(), times.end());
 }
@@ -76,7 +75,7 @@ long long MetricCalculator::getTotalLockTime(std::vector<std::vector<long long>>
 	return totalSubLockTime + totalPubLockTime;
 }
 
-std::vector<long long> MetricCalculator::getLatencies(std::vector<long long>& beforeAccessTimes, std::vector<long long>& afterAccessTimes)
+std::vector<long long> MetricCalculator::getLatencies(const std::vector<long long>& beforeAccessTimes, const std::vector<long long>& afterAccessTimes)
 {
 	std::vector<long long> latencies;
 
@@ -111,7 +110,7 @@ long long MetricCalculator::getTotalSubscriberLockTime(std::vector<std::vector<l
 	return totalSubscriberLockTime;
 }
 
-std::vector<long long> MetricCalculator::getIterationTimes(std::vector<std::vector<long long>>& times, int iteration) {
+std::vector<long long> MetricCalculator::getIterationTimes(const std::vector<std::vector<long long>>& times, int iteration) {
 	std::vector<long long> iterationTimes;
 	for (int i = 0; i < times.size(); i++)
 		iterationTimes.push_back(times[i][iteration]);

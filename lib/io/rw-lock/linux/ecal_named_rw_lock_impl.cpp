@@ -260,36 +260,32 @@ namespace eCAL
     return 0;
   }
 
-  bool CNamedRwLockImpl::LockRead(int64_t timeout_)
-  {
-    // check mutex handle
-    if (m_rw_lock_handle == nullptr)
-      return false;
+  bool CNamedRwLockImpl::LockRead(int64_t timeout_) {
+      // check mutex handle
+      if (m_rw_lock_handle == nullptr)
+          return false;
 
-    // timeout_ < 0 -> wait infinite
-    if (timeout_ < 0)
-    {
-      return(named_rw_lock_lock_read(m_rw_lock_handle));
-    }
-    // timeout_ == 0 -> check lock state only
-    else if (timeout_ == 0)
-    {
-      return(named_rw_lock_trylock_read(m_rw_lock_handle));
-    }
-    // timeout_ > 0 -> wait timeout_ ms
-    else
-    {
-      struct timespec abstime;
-      clock_gettime(CLOCK_MONOTONIC, &abstime);
-
-      abstime.tv_sec = abstime.tv_sec + timeout_ / 1000;
-      abstime.tv_nsec = abstime.tv_nsec + (timeout_ % 1000) * 1000000;
-      while (abstime.tv_nsec >= 1000000000)
-      {
-        abstime.tv_nsec -= 1000000000;
-        abstime.tv_sec++;
+      // timeout_ < 0 -> wait infinite
+      if (timeout_ < 0) {
+          return (named_rw_lock_lock_read(m_rw_lock_handle));
       }
-      return(named_rw_lock_timedlock_read(m_rw_lock_handle, abstime));
+          // timeout_ == 0 -> check lock state only
+      else if (timeout_ == 0) {
+          return (named_rw_lock_trylock_read(m_rw_lock_handle));
+      }
+          // timeout_ > 0 -> wait timeout_ ms
+      else {
+          struct timespec abstime;
+          clock_gettime(CLOCK_MONOTONIC, &abstime);
+
+          abstime.tv_sec = abstime.tv_sec + timeout_ / 1000;
+          abstime.tv_nsec = abstime.tv_nsec + (timeout_ % 1000) * 1000000;
+          while (abstime.tv_nsec >= 1000000000) {
+              abstime.tv_nsec -= 1000000000;
+              abstime.tv_sec++;
+          }
+          return (named_rw_lock_timedlock_read(m_rw_lock_handle, abstime));
+      }
   }
 
   bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
