@@ -136,10 +136,10 @@ void TestCase::calculateMetrics()
 
 	this->avgIterationDuration = calculator.getAvgTime(iterationDurations); 
 	this->maxIterationDuration = calculator.getMaxTime(iterationDurations);
-	this->minIterationDuration = calculator.getMaxTime(iterationDurations);
+	this->minIterationDuration = calculator.getMinTime(iterationDurations);
 
 	this->totalDuration = calculator.getTotalDuration(subAfterReleaseTimes);
-	this->totalLockTime = calculator.getTotalLockTime(subscriberLockTimes, pubAfterAccessTimes, pubAfterReleaseTimes);
+	this->totalLockTime = calculator.getTotalLockTime(subAfterAccessTimes, subAfterReleaseTimes, pubAfterAccessTimes, pubAfterReleaseTimes);
 	this->totalSubcriberLockTime = calculator.getTotalSubscriberLockTime(subAfterAccessTimes, subAfterReleaseTimes); 
 
 	this->pubLatencies = calculator.getLatencies(pubBeforeAccessTimes, pubAfterAccessTimes);

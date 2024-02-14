@@ -1,4 +1,6 @@
-# CMake build folder
+# CMake build folders
 /_build*
+/cmake-build-*
 
 .vscode
+.idea
