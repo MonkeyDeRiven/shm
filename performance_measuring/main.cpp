@@ -20,9 +20,9 @@
 #include <functional>
 #include <exception>
 
-const int WRITE_ACCESS_TIMEOUT = 100;
+const int WRITE_ACCESS_TIMEOUT = 10000;
 const int READ_ACCESS_TIMEOUT = 100;
-const int WRITE_ADDESS_TIMEOUT = 10;
+const int WRITE_ADDRESS_TIMEOUT = 10;
 
 const bool SEND_RAW_DATA = true;
 
@@ -73,15 +73,15 @@ void readerDone()
 
 int main()
 {
-	std::string testResultFileName = "eCAL_base_lock_test";
+    std::string testResultFileName = "eCAL_base_lock_test";
 
-	//run tests with mutex lock
-	runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
+    //run tests with mutex lock
+    runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
 
-	testResultFileName = "thesis_rw_lock_non_recoverable_test";
+    testResultFileName = "thesis_rw_lock_non_recoverable_test";
 
-	//run tests with rw lock
-	runTests(testResultFileName, eCAL::CMemoryFile::lock_type::rw_lock);
+    //run tests with rw lock
+    runTests(testResultFileName, eCAL::CMemoryFile::lock_type::rw_lock);
 
 	return 0;
 }
@@ -205,8 +205,8 @@ void runTestsZeroCopy(std::vector<TestCaseZeroCopy>& testCases, std::string file
 		}
 
 		// wait for test to finish
-		for (int i = 0; i < threadHandles.size(); i++) {
-			threadHandles[i].join();
+		for (auto& thread : threadHandles) {
+			thread.join();
 		}
 
 		std::cout << "test completed" << std::endl << std::endl;
@@ -279,9 +279,10 @@ void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
 	auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
 	auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
 	for (int i = 0; i < testCase.getMsgCount(); i++) {
-		if (contentAvailable == false) {
+		if (!contentAvailable) {
 			//blocks the reader till content is written
-			std::unique_lock<std::mutex> w_lock(readerWriterLock);
+			{}
+            std::unique_lock<std::mutex> w_lock(readerWriterLock);
 
 			beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
 			while (!memoryFile.GetWriteAccess(WRITE_ACCESS_TIMEOUT)) {}
@@ -306,7 +307,8 @@ void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
 
 void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFile, int timesIndex)
 {
-	std::vector<std::string> _buf(POINTER_SIZE);
+    std::vector<char> _buf = std::vector<char>(POINTER_SIZE);
+	//std::vector<std::string> _buf(POINTER_SIZE);
 	auto beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
 	auto afterAccess = std::chrono::steady_clock::now().time_since_epoch();
 	auto afterRelease = std::chrono::steady_clock::now().time_since_epoch();
@@ -315,7 +317,7 @@ void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFil
 		std::unique_lock<std::mutex> r_lock(readerWriterLock);
 		readerWriterSync.wait(r_lock, [=] { return writerDoneCount == i + 1; });
 		r_lock.unlock();
-		//aquire read access, could already be aquired by different reader
+		//acquire read access, could already be aquired by different reader
 		beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
 		while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)) {}
 		afterAccess = std::chrono::steady_clock::now().time_since_epoch();

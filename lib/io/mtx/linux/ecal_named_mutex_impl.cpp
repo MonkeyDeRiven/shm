@@ -35,6 +35,8 @@
 #include <cstdint>
 #include <string>
 
+#include <iostream>
+
 struct alignas(8) named_mutex
 {
   pthread_mutex_t  mtx;
@@ -131,7 +133,7 @@ namespace
       if (ret == 0) mtx_->locked = 1;
       // unlock condition mutex
       pthread_mutex_unlock(&mtx_->mtx);
-      // sucess == wait returned 0
+      // success == wait returned 0
       return (ret == 0);
     }
   }

@@ -47,7 +47,7 @@ namespace
   {
     // create shared memory file
     int previous_umask = umask(000);  // set umask to nothing, so we can create files with all possible permission bits
-    int fd = ::shm_open(rw_lock_name_, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    int fd = ::shm_open(rw_lock_name_, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     umask(previous_umask);            // reset umask to previous permissions
     if (fd < 0) return nullptr;
 
@@ -73,7 +73,7 @@ namespace
 
 
     // map them into shared memory
-    named_rw_lock_t* rw_lock = static_cast<named_rw_lock_t*>(mmap(nullptr, sizeof(named_rw_lock_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+    auto* rw_lock = static_cast<named_rw_lock_t*>(mmap(nullptr, sizeof(named_rw_lock_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
     ::close(fd);
 
     // initialize rw-lock and condition
@@ -100,9 +100,9 @@ namespace
   {
      // try to get write access without blocking
     if (pthread_rwlock_trywrlock(&rwl_->rw_lock) == 0)
-      // return true if access is granted imediately
+      // return true if access is granted immediately
       return true;
-    // return false if access was not granted imediately
+    // return false if access was not granted immediately
     return false;
   }
 
@@ -111,17 +111,18 @@ namespace
     // try to get write access
     // block if lock is held by another process
     // unblock and return false after timeout period
-    if (pthread_rwlock_timedwrlock(&rwl_->rw_lock, &timeout_) == 0)
+    int result = pthread_rwlock_timedwrlock(&rwl_->rw_lock, &timeout_);
+    if (result == 0)
       // return true if access was granted within the timeout period
       return true;
-    // return false if acces was not granted within the timeout period
+    // return false if access was not granted within the timeout period
     return false;
   }
 
   bool named_rw_lock_lock_read(named_rw_lock_t* rwl_)
   {
     // wait for read access
-    // block untill lock is released by writer process
+    // block until lock is released by writer process
     pthread_rwlock_rdlock(&rwl_->rw_lock);
     // return true when lock was aquired
     return true;
@@ -131,7 +132,7 @@ namespace
   {
     // try to get read access without blocking
     if (pthread_rwlock_tryrdlock(&rwl_->rw_lock) == 0)
-      // return true if access is granted imediately
+      // return true if access is granted immediately
       return true;
     // return false if access was not granted immediately
     return false;
@@ -145,7 +146,7 @@ namespace
     if (pthread_rwlock_timedrdlock(&rwl_->rw_lock, &timeout_) == 0)
       // return true if access was granted within the timeout period
       return true;
-    // return false if acces was not granted within the timeout period
+    // return false if access was not granted within the timeout period
     return false;
   }
 
@@ -167,7 +168,7 @@ namespace
     if (fd < 0) return nullptr;
 
     // map file content to mutex
-    named_rw_lock_t* rwl = static_cast<named_rw_lock_t*>(mmap(nullptr, sizeof(named_rw_lock_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
+    auto* rwl = static_cast<named_rw_lock_t*>(mmap(nullptr, sizeof(named_rw_lock_t), PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0));
     ::close(fd);
 
     // return opened mutex
@@ -204,7 +205,7 @@ namespace eCAL
     // build shm file name
     const std::string rwl_name = named_rw_lock_buildname(m_named);
 
-    // we try to open an existing mutex first
+    // we try to open an existing rw-lock first
     m_rw_lock_handle = named_rw_lock_open(rwl_name.c_str());
 
     // if we could not open it we create a new one
