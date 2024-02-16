@@ -55,6 +55,8 @@ namespace eCAL
   private:
     named_rw_lock_t* m_rw_lock_handle;
     std::string m_named;
+    bool m_holds_write_lock;
+    bool m_holds_read_lock;
     bool m_has_ownership;
   };
 }

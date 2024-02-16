@@ -35,6 +35,8 @@
 #include <cstdint>
 #include <string>
 
+#include <iostream>
+
 struct alignas(8) named_rw_lock
 {
   pthread_rwlock_t  rw_lock;
@@ -47,7 +49,7 @@ namespace
   {
     // create shared memory file
     int previous_umask = umask(000);  // set umask to nothing, so we can create files with all possible permission bits
-    int fd = ::shm_open(rw_lock_name_, O_RDWR | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+    int fd = ::shm_open(rw_lock_name_, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
     umask(previous_umask);            // reset umask to previous permissions
     if (fd < 0) return nullptr;
 
@@ -197,7 +199,7 @@ namespace
 namespace eCAL
 {
 
-  CNamedRwLockImpl::CNamedRwLockImpl(const std::string &name_, bool /*recoverable_*/) : m_rw_lock_handle(nullptr), m_named(name_), m_has_ownership(false)
+  CNamedRwLockImpl::CNamedRwLockImpl(const std::string &name_, bool /*recoverable_*/) : m_rw_lock_handle(nullptr), m_named(name_), m_has_ownership(false), m_holds_write_lock(false), m_holds_read_lock(false)
   {
     if(name_.empty())
       return;
@@ -265,14 +267,17 @@ namespace eCAL
       // check mutex handle
       if (m_rw_lock_handle == nullptr)
           return false;
+      if (m_holds_read_lock)
+          return false;
 
+      bool is_locked(false);
       // timeout_ < 0 -> wait infinite
       if (timeout_ < 0) {
-          return (named_rw_lock_lock_read(m_rw_lock_handle));
+          is_locked = (named_rw_lock_lock_read(m_rw_lock_handle));
       }
           // timeout_ == 0 -> check lock state only
       else if (timeout_ == 0) {
-          return (named_rw_lock_trylock_read(m_rw_lock_handle));
+          is_locked = (named_rw_lock_trylock_read(m_rw_lock_handle));
       }
           // timeout_ > 0 -> wait timeout_ ms
       else {
@@ -285,13 +290,22 @@ namespace eCAL
               abstime.tv_nsec -= 1000000000;
               abstime.tv_sec++;
           }
-          return (named_rw_lock_timedlock_read(m_rw_lock_handle, abstime));
+          is_locked = (named_rw_lock_timedlock_read(m_rw_lock_handle, abstime));
       }
+      if (is_locked)
+          m_holds_read_lock = true;
+      return is_locked;
   }
 
   bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
   {
-    return Unlock();
+      if (m_holds_read_lock) {
+          bool is_unlocked(Unlock());
+          if (is_unlocked)
+              m_holds_read_lock = false;
+          return is_unlocked;
+      }
+      return false;
   }
 
   bool CNamedRwLockImpl::Lock(int64_t timeout_)
@@ -300,15 +314,19 @@ namespace eCAL
     if (m_rw_lock_handle == nullptr)
       return false;
 
+    if (m_holds_write_lock)
+        return false;
+
+    bool is_locked(false);
     // timeout_ < 0 -> wait infinite
     if (timeout_ < 0)
     {
-      return(named_rw_lock_lock_write(m_rw_lock_handle));
+      is_locked = (named_rw_lock_lock_write(m_rw_lock_handle));
     }
       // timeout_ == 0 -> check lock state only
     else if (timeout_ == 0)
     {
-      return(named_rw_lock_trylock_write(m_rw_lock_handle));
+      is_locked = (named_rw_lock_trylock_write(m_rw_lock_handle));
     }
       // timeout_ > 0 -> wait timeout_ ms
     else
@@ -323,8 +341,11 @@ namespace eCAL
         abstime.tv_nsec -= 1000000000;
         abstime.tv_sec++;
       }
-      return(named_rw_lock_timedlock_write(m_rw_lock_handle, abstime));
+      is_locked = (named_rw_lock_timedlock_write(m_rw_lock_handle, abstime));
     }
+    if (is_locked)
+        m_holds_write_lock = true;
+    return is_locked;
   }
 
   bool CNamedRwLockImpl::Unlock()
@@ -333,8 +354,12 @@ namespace eCAL
     if(m_rw_lock_handle == nullptr)
       return false;
 
+    if (!m_holds_write_lock)
+        return false;
+
     // unlock the mutex
     named_rw_lock_unlock(m_rw_lock_handle);
+    m_holds_write_lock = false;
     return true;
   }
 }

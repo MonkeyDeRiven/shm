@@ -190,7 +190,7 @@ TEST(RwLock, UnlockReadByNoneReadLockHolder)
 	bool unlockSuccess = rwLock.UnlockRead(TIMEOUT);
 
 
-	EXPECT_EQ(1, rwLock.GetReaderCount()) << "Read lock was unlocked by non read lock holder!";
+	EXPECT_FALSE(unlockSuccess) << "Read lock was unlocked by non read lock holder!";
 
 	threadDone = true;
 	threadHoldGuard.unlock();
@@ -529,7 +529,7 @@ TEST(RwLock, RobustLockConstruction)
 		for (auto& thread : threadHandles) {
 			thread.join();
 		}
-		EXPECT_EQ(constructingProcessesCount * incrementSharedCounterCount, sharedCounter);
+		ASSERT_EQ(constructingProcessesCount * incrementSharedCounterCount, sharedCounter);
 		threadHandles.clear();
 		endTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 	}

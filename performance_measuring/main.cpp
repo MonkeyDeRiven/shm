@@ -281,7 +281,6 @@ void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
 	for (int i = 0; i < testCase.getMsgCount(); i++) {
 		if (!contentAvailable) {
 			//blocks the reader till content is written
-			{}
             std::unique_lock<std::mutex> w_lock(readerWriterLock);
 
 			beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
@@ -295,7 +294,6 @@ void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
 			writerDoneCount++;
 			//allows readers to read written content
 			readerWriterSync.notify_all();
-
 			//process taken time while readers can read
 			testCase.pushToPubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count());
 			testCase.pushToPubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count());
@@ -317,7 +315,7 @@ void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFil
 		std::unique_lock<std::mutex> r_lock(readerWriterLock);
 		readerWriterSync.wait(r_lock, [=] { return writerDoneCount == i + 1; });
 		r_lock.unlock();
-		//acquire read access, could already be aquired by different reader
+		//acquire read access, could already be acquired by different reader
 		beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
 		while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)) {}
 		afterAccess = std::chrono::steady_clock::now().time_since_epoch();
