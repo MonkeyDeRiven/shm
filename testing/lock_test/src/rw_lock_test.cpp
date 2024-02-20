@@ -1,5 +1,6 @@
 #include "gtest/gtest.h"
 #include "io/rw-lock/ecal_named_rw_lock.h"
+#include "ecal_named_mutex.h"
 
 #include <string>
 #include <thread>
@@ -577,7 +578,7 @@ TEST(RwLock, WriterSignalsReaderWhenUnlocked)
 		// writer holds lock
 		lockHoldingWriter = std::thread([&] { writerHoldLockSerialized(lockName, isLocked); });
 
-		// busy wait till writer aquired the lock or failed
+		// busy wait till writer acquired the lock or failed
 		while (isLocked == -1) {};
 
 		// test cannot be run correctly if reader does not hold the lock
@@ -648,7 +649,7 @@ TEST(RwLock, ReaderSignalsWriterWhenUnlocked)
 		// writer holds lock
 		lockHoldingWriter = std::thread([&] { readerHoldLockSerialized(lockName, readLockHolderCount, readLockTimeoutCount); });
 
-		// busy wait till reader aquired the lock or failed
+		// busy wait till reader acquired the lock or failed
 		while (readLockHolderCount + readLockTimeoutCount != 1) {}
 
 		// test cannot be run correctly if reader does not hold the lock
@@ -676,7 +677,7 @@ TEST(RwLock, ReaderSignalsWriterWhenUnlocked)
 
 /*
 * This test confirms that the lock does not guarantee fairness in any way,
-* meaning the lock can only be aquired when it is in acquirable state
+* meaning the lock can only be acquired when it is in acquirable state
 * and there are no lock mechanisms that guarantee reader or writer,
 * to make the lock state acquirable for them.
 */

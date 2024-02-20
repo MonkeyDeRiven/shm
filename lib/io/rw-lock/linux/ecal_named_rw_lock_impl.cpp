@@ -94,7 +94,7 @@ namespace
     // wait for read access
     // block till all processes have released the lock
     pthread_rwlock_wrlock(&rwl_->rw_lock);
-    // return true when lock was aquired
+    // return true when lock was acquired
     return true;
   }
 
@@ -126,7 +126,7 @@ namespace
     // wait for read access
     // block until lock is released by writer process
     pthread_rwlock_rdlock(&rwl_->rw_lock);
-    // return true when lock was aquired
+    // return true when lock was acquired
     return true;
   }
 
@@ -152,9 +152,9 @@ namespace
     return false;
   }
 
-  void named_rw_lock_unlock(named_rw_lock_t* rwl_)
+  int named_rw_lock_unlock(named_rw_lock_t* rwl_)
   {
-    pthread_rwlock_unlock(&rwl_->rw_lock);
+      return pthread_rwlock_unlock(&rwl_->rw_lock);
   }
 
   int named_rw_lock_destroy(const char* rw_lock_name_)
@@ -300,9 +300,11 @@ namespace eCAL
   bool CNamedRwLockImpl::UnlockRead(int64_t timeout_)
   {
       if (m_holds_read_lock) {
-          bool is_unlocked(Unlock());
-          if (is_unlocked)
+          int is_unlocked(named_rw_lock_unlock(m_rw_lock_handle));
+          if (is_unlocked == 0)
               m_holds_read_lock = false;
+          else
+              std::cout << is_unlocked;
           return is_unlocked;
       }
       return false;
@@ -358,8 +360,14 @@ namespace eCAL
         return false;
 
     // unlock the mutex
-    named_rw_lock_unlock(m_rw_lock_handle);
-    m_holds_write_lock = false;
+    int result = named_rw_lock_unlock(m_rw_lock_handle);
+    if (result == 0) {
+        m_holds_write_lock = false;
+    }
+    else {
+        std::cout << result;
+        return false;
+    }
     return true;
   }
 }
