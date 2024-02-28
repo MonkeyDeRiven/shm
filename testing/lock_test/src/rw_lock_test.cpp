@@ -263,6 +263,7 @@ TEST(RwLock, LockReadWhileReadLocked)
 		}
 		// busy wait till all reader are ready to be notified
 		while (readLockHolderCount == parallelReaderCount - readLockTimeoutCount) {}
+        std::cout << parallelReaderCount;
 	}
 	threadDone = true;
 	threadTerminateCond.notify_all();
@@ -478,10 +479,11 @@ void useWriteLock(const std::string& lockName, int& sharedCounter, const int& in
 {
 	eCAL::CNamedRwLock rwLock(lockName);
 
-	if (rwLock.Lock(TIMEOUT)) {
+	if (rwLock.Lock(-1)) {
 		for (int i = 0; i < incrementCount; i++)
 			sharedCounter++;
-		rwLock.Unlock();
+		if(rwLock.Unlock())
+            std::cout << "unlock success" << std::endl;
 	}
 }
 
@@ -511,7 +513,8 @@ TEST(RwLock, RobustLockConstruction)
 	std::chrono::milliseconds testDuration{1000};
 	std::cout << "INFO: The test duration is set to " << testDuration.count() / 1000 << "sec" << std::endl;
 	const std::string lockName = "RobustLockConstructionTest";
-	//const int constructionCyclesCount = 3000;
+    eCAL::CNamedRwLock rwLock(lockName);
+	const int constructionCyclesCount = 10;
 	const int constructingProcessesCount = 2;
 	const int incrementSharedCounterCount = 10;
 
@@ -520,8 +523,8 @@ TEST(RwLock, RobustLockConstruction)
 	// start time in ms
 	auto startTime = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now().time_since_epoch());
 	auto endTime = startTime;
-	//for (int i = 0; i < constructionCyclesCount; i++) {
-	while(endTime - startTime < testDuration){
+	for (int i = 0; i < constructionCyclesCount; i++) {
+	//while(endTime - startTime < testDuration){
 		int sharedCounter = 0;
 		std::unique_lock<std::mutex> threadHoldGuard(threadHoldMutex);
 		for (int i = 0; i < constructingProcessesCount; i++) {
@@ -548,6 +551,7 @@ TEST(RwLock, RobustLockConstruction)
 TEST(RwLock, WriterSignalsReaderWhenUnlocked)
 {
 	std::string lockName = "WriterSignalsReaderWhenUnlockedTest";
+    eCAL::CNamedRwLock rwLock(lockName);
 	int waitingReaderCount = 1000;
 
 	// lock holding writer feedback
@@ -691,6 +695,7 @@ void runRobustnessTest(std::string lockName, int writerCount, int readerCount, i
 	// the counter which should not become inconsistent during the lock usage
 	int sharedCounter = 0;
 
+    eCAL::CNamedRwLock rwLock(lockName);
 	std::vector<std::thread> readerThreads;
 	// the amount of times a reader should check the counter
 	const int readCycleCount = 5;

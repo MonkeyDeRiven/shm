@@ -1,5 +1,10 @@
 add_library(shm)
 
+find_library(LIBRT rt)
+if(LIBRT)
+    target_link_libraries(shm ${LIBRT})
+endif()
+
 target_sources(shm
 PUBLIC
   ecal_def.h

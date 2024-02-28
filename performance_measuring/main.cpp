@@ -76,7 +76,7 @@ int main()
     std::string testResultFileName = "eCAL_base_lock_test";
 
     //run tests with mutex lock
-    runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
+    //runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
 
     testResultFileName = "thesis_rw_lock_non_recoverable_test";
 
@@ -285,10 +285,12 @@ void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
 
 			beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
 			while (!memoryFile.GetWriteAccess(WRITE_ACCESS_TIMEOUT)) {}
+            std::cout << "write access" << std::endl;
 			afterAccess = std::chrono::steady_clock::now().time_since_epoch();
 
 			memoryFile.WriteBuffer(testCase.getPayload().get()->data(), testCase.getPayloadSize(), 0);
 			memoryFile.ReleaseWriteAccess();
+            std::cout << "release write access" << std::endl;
 			afterRelease = std::chrono::steady_clock::now().time_since_epoch();
 			contentAvailable = true;
 			writerDoneCount++;
@@ -318,11 +320,13 @@ void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFil
 		//acquire read access, could already be acquired by different reader
 		beforeAccess = std::chrono::steady_clock::now().time_since_epoch();
 		while (!memoryFile.GetReadAccess(READ_ACCESS_TIMEOUT)) {}
+        std::cout << "read access" << std::endl;
 		afterAccess = std::chrono::steady_clock::now().time_since_epoch();
 
 		memoryFile.Read(_buf.data(), testCase.getPayloadSize(), 0);
 		std::this_thread::sleep_for(std::chrono::milliseconds(testCase.getCalculationTime()));
 		memoryFile.ReleaseReadAccess();
+        std::cout << "released read access";
 		afterRelease = std::chrono::steady_clock::now().time_since_epoch();
 		readerDone();
 
