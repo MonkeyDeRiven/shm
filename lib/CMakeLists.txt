@@ -9,6 +9,7 @@ PUBLIC
   io/shm/ecal_memfile_info.h
   $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/io/mtx/win32/ecal_named_mutex_impl.h>
   $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/io/rw-lock/win32/ecal_named_rw_lock_impl.h>
+  $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/io/rw-lock/win32/ecal_named_rw_lock_recoverable_impl.h>
   $<$<BOOL:${UNIX}>:${CMAKE_CURRENT_SOURCE_DIR}/io/mtx/linux/ecal_named_mutex_impl.h>
   $<$<BOOL:${UNIX}>:${CMAKE_CURRENT_SOURCE_DIR}/io/rw-lock/linux/ecal_named_rw_lock_impl.h>
 PRIVATE
@@ -22,6 +23,7 @@ PRIVATE
   $<$<BOOL:${UNIX}>:${CMAKE_CURRENT_SOURCE_DIR}/io/shm/linux/ecal_memfile_os.cpp>
   $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/io/rw-lock/win32/ecal_named_rw_lock_impl.cpp>
   $<$<BOOL:${UNIX}>:${CMAKE_CURRENT_SOURCE_DIR}/io/rw-lock/linux/ecal_named_rw_lock_impl.cpp>
+  $<$<BOOL:${WIN32}>:${CMAKE_CURRENT_SOURCE_DIR}/io/rw-lock/win32/ecal_named_rw_lock_recoverable_impl.cpp>
 
 )
 

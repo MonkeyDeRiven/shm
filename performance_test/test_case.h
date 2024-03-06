@@ -30,6 +30,13 @@ public:
 	//metric methods
 	void calculateMetrics();
 
+	//get times workaround
+	std::vector<long long> getPubBeforeAccess() { return this->pubBeforeAccessTimes; };
+	std::vector<long long> getPubAfterRelease() { return this->pubAfterReleaseTimes; };
+	std::vector<std::vector<long long>> getSubBeforeAccess() { return this->subBeforeAccessTimes; };
+	std::vector<std::vector<long long>> getSubAfterRelease() { return this->subAfterReleaseTimes; };
+
+
 protected:
 	int subCount;
 	int pubCount;

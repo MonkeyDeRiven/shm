@@ -20,11 +20,12 @@
 /**
  * @brief  eCAL named rw-lock
 **/
-
+/*
 #pragma once
 
 #include "io/rw-lock/ecal_named_rw_lock_base.h"
 #include <atomic>
+#include <vector>
 
 class CreateMutexException : public std::exception {
 public:
@@ -69,6 +70,7 @@ struct named_rw_lock_state
 {
   bool writer_active = false;
   int reader_count = 0;
+  std::vector<DWORD> pids;
 };
 
 typedef struct named_rw_lock_state state;
@@ -91,6 +93,7 @@ namespace eCAL
     bool WasRecovered() const final;
     bool HasOwnership() const final;
     int GetReaderCount() final;
+    bool IsBroken();
 
     void DropOwnership() final;
 
@@ -111,3 +114,4 @@ namespace eCAL
     bool m_holds_read_lock;
   };
 }
+*/

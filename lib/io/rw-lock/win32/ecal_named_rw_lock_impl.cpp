@@ -194,9 +194,10 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::Lock(int64_t timeout_)
 	{
+		/*
 		if (!IsCreated())
 			return false;
-
+		*/
 		DWORD result = WaitForSingleObject(m_mutex_handle, static_cast<DWORD>(timeout_));
 		if (result == WAIT_OBJECT_0 || result == WAIT_ABANDONED) {
 			// check if any reader is active
@@ -227,9 +228,10 @@ namespace eCAL
 
 	bool CNamedRwLockImpl::Unlock()
 	{
+		/*
 		if (!IsCreated())
 			return false;
-
+		*/
 		// dont change the lock state if the lock is not held by the caller 
 		if (!m_holds_write_lock)
 			return false;

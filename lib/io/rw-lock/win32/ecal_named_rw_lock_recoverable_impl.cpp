@@ -20,10 +20,11 @@
 /**
  * @brief  eCAL named rw-lock
 **/
-
+/*
 #include "ecal_named_rw_lock_recoverable_impl.h"
 
 #include "ecal_win_main.h"
+#include <tlhelp32.h>
 #include <iostream>
 namespace eCAL
 {
@@ -133,6 +134,13 @@ namespace eCAL
 		return m_lock_state->reader_count;
 	}
 
+	bool CNamedRwLockRecoverableImpl::IsBroken()
+	{
+		// take snapshot of current process table
+		HANDLE h_process_snap = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+	}
+
 	bool CNamedRwLockRecoverableImpl::LockRead(int64_t timeout_)
 	{
 		if (!IsCreated())
@@ -160,6 +168,7 @@ namespace eCAL
 			}
 			// aquire reader lock and unlock mutex
 			m_lock_state->reader_count++;
+			m_lock_state->pids.push_back(GetCurrentProcessId());
 			ReleaseMutex(m_mutex_handle);
 			m_holds_read_lock = true;
 			return true;
@@ -181,6 +190,7 @@ namespace eCAL
 		if (result == WAIT_OBJECT_0) {
 			// release reader lock
 			m_lock_state->reader_count--;
+			m_lock_state->pids.erase(std::find(m_lock_state->pids.begin(), m_lock_state->pids.end(), GetCurrentProcessId()));
 			if (m_lock_state->reader_count == 0) {
 				// signal writer 
 				SetEvent(m_event_handle);
@@ -218,6 +228,7 @@ namespace eCAL
 			}
 			// aquire writer lock and release mutex
 			m_lock_state->writer_active = true;
+			m_lock_state->pids.push_back(GetCurrentProcessId());
 			ReleaseMutex(m_mutex_handle);
 			m_holds_write_lock = true;
 			return true;
@@ -238,6 +249,7 @@ namespace eCAL
 		DWORD result = WaitForSingleObject(m_mutex_handle, INFINITE);
 		if (result == WAIT_OBJECT_0) {
 			m_lock_state->writer_active = false;
+			m_lock_state->pids.erase(std::find(m_lock_state->pids.begin(), m_lock_state->pids.end(), GetCurrentProcessId()));
 			ReleaseMutex(m_mutex_handle);
 			SetEvent(m_event_handle);
 			m_holds_write_lock = false;
@@ -246,3 +258,4 @@ namespace eCAL
 		return false;
 	}
 }
+*/
