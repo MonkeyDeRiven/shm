@@ -20,13 +20,16 @@
 #include <functional>
 #include <exception>
 
+#include <numeric>
+#include <algorithm>
+
 const int WRITE_ACCESS_TIMEOUT = 100;
 const int READ_ACCESS_TIMEOUT = 100;
 const int WRITE_ADDESS_TIMEOUT = 10;
 
 const bool SEND_RAW_DATA = true;
 
-const int WARMUP = 10000;
+const int WARMUP = 1000;
 
 void printRateTestMetrics(std::vector<TestCaseCopy> rateTests);
 
@@ -59,10 +62,10 @@ std::mutex readerWriterLock;
 
 //reader writer coordination
 std::mutex readerDoneLock;
-int readerDoneCount = 0;
-int writerDoneCount = 0;
-int totalReaderCount = 0;
-bool contentAvailable = false;
+std::atomic<int> readerDoneCount = 0;
+std::atomic<int> writerDoneCount = 0;
+std::atomic<int> totalReaderCount = 0;
+std::atomic<bool> contentAvailable = false;
 
 void readerDone()
 {
@@ -74,6 +77,18 @@ void readerDone()
 		readerWriterSync.notify_all();
 	}
 }
+
+struct rateTest {
+	eCAL::CMemoryFile::lock_type type;
+	int subCount;
+	// time each iteration took
+	std::vector<long long> times;
+	float avgTime;
+	long long maxTime;
+	long long minTime;
+};
+
+std::vector<rateTest> rateTests;
 
 
 void runLockPerformanceCheck(eCAL::CMemoryFile::lock_type lockType, int iterations)
@@ -181,12 +196,86 @@ void runRwLockPerformance(int iterations, int subCount)
 
 std::vector<float> muavgs;
 std::vector<long long> mumaxs;
+std::vector<long long> mumins;
 std::vector<float> rwavgs;
 std::vector<long long> rwmaxs;
+std::vector<long long> rwmins;
+
 bool rwLock = false;
+
+void saveLockData(std::map<int, std::vector<rateTest>> &mutexTests, std::map<int, std::vector<rateTest>> &rwLockTests)
+{
+	std::ofstream file;
+	std::string fileName = "lock_rate_data_.txt";
+	file.open(fileName);
+	if (file.is_open()) {
+		auto itMutex = mutexTests.begin();
+		auto itRwLock = rwLockTests.begin();
+
+		while (itMutex != mutexTests.end() && itRwLock != rwLockTests.end())
+		{
+			file << "subs:" << itMutex->first << "\n";
+			for (int i = 0; i < itMutex->second.size(); i++) {
+				file << itMutex->second[i].avgTime << "," << itMutex->second[i].minTime << "," << itMutex->second[i].maxTime;
+				if (i < itMutex->second.size()-1) {
+					file << ";";
+				}
+			}
+			file << "\n";
+			for (int i = 0; i < itRwLock->second.size(); i++) {
+				file << itRwLock->second[i].avgTime << "," << itRwLock->second[i].minTime << "," << itRwLock->second[i].maxTime;
+				if (i < itRwLock->second.size() - 1) {
+					file << ";";
+				}
+			}
+			file << "\n";
+			++itMutex;
+			++itRwLock;
+		}
+	}
+	else {
+		std::cout << "could not write to file" << std::endl << std::endl;
+	}
+	file.close();
+}
+#include "math.h"
+
+void fillTestMap(std::map<int, std::vector<rateTest>>&mutexTests, std::map<int, std::vector<rateTest>>&rwLockTests)
+{
+	for (int i = 0; i < rateTests.size(); i++) {
+		if (rateTests[i].type == eCAL::CMemoryFile::lock_type::mutex){
+			if (mutexTests.find(rateTests[i].subCount) != mutexTests.end())
+			{
+				mutexTests.at(rateTests[i].subCount).push_back(rateTests[i]);
+				continue;
+			}
+			std::vector<rateTest> nextTestList = { rateTests[i] };
+			mutexTests.insert({ rateTests[i].subCount, nextTestList });
+		}
+		else {
+			if (rwLockTests.find(rateTests[i].subCount) != rwLockTests.end())
+			{
+				rwLockTests.at(rateTests[i].subCount).push_back(rateTests[i]);
+				continue;
+			}
+			std::vector<rateTest> nextTestList = { rateTests[i] };
+			rwLockTests.insert({ rateTests[i].subCount, nextTestList });
+		}
+	}
+}
 
 int main()
 {
+	// Get the handle to the current process
+	HANDLE hProcess = GetCurrentProcess();
+
+	// Set the process priority to RealTime
+	if (!SetPriorityClass(hProcess, REALTIME_PRIORITY_CLASS)) {
+		std::cerr << "Failed to set process priority to RealTime." << std::endl;
+		return 1;
+	}
+
+	std::cout << "Process priority set to RealTime." << std::endl << std::endl;
 	/*
 	std::cout << "mutex" << std::endl << std::endl;
 	runLockPerformanceCheck(eCAL::CMemoryFile::lock_type::mutex, 1000000);
@@ -204,8 +293,12 @@ int main()
 	runRwLockPerformance(100000, 15);
 	*/
 	std::string testResultFileName = "eCAL_base_lock_test";
-	
-	for (int i = 0; i < 20; i++) {
+	int iterations = 250;
+
+	for (int i = 0; i < iterations; i++) {
+		std::cout << i << "/" << iterations << std::flush;
+		std::cout << "\r";
+		
 		//run tests with mutex lock
 		rwLock = false;
 		runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
@@ -216,45 +309,55 @@ int main()
 		rwLock = true;
 		runTests(testResultFileName, eCAL::CMemoryFile::lock_type::rw_lock);
 	}
-	std::vector<float> muavgs1;
-	std::vector<float> muavgs3;
-	std::vector<float> muavgs5;
-	std::vector<float> muavgs10;
 
-	std::vector<float> rwavgs1;
-	std::vector<float> rwavgs3;
-	std::vector<float> rwavgs5;
-	std::vector<float> rwavgs10;
+	std::map<int, std::vector<rateTest>> mutexTests;
+	std::map<int, std::vector<rateTest>> rwLockTests;
 
-	for (int i = 0; i < muavgs.size(); i++) {
-		if (i % 4 == 0) {
-			muavgs1.push_back(muavgs[i]);
-			rwavgs1.push_back(rwavgs[i]);
-		}
-		if (i % 4 == 1) {
-			muavgs3.push_back(muavgs[i]);
-			rwavgs3.push_back(rwavgs[i]);
-		}
-		if (i % 4 == 2) {
-			muavgs5.push_back(muavgs[i]);
-			rwavgs5.push_back(rwavgs[i]);
-		}
-		if (i % 4 == 3) {
-			muavgs10.push_back(muavgs[i]);
-			rwavgs10.push_back(rwavgs[i]);
-		}
+	fillTestMap(mutexTests, rwLockTests);
+	saveLockData(mutexTests, rwLockTests);
+
+	auto end = std::chrono::system_clock::now().time_since_epoch();
+
+	/*
+	std::vector<float> muavgValues;
+	std::vector<float> rwavgValues;
+	// calculate the total avg for each testcase
+	for (int i = 0; i < muTimesList.size(); i++) {
+		muavgValues.push_back(std::accumulate(muTimesList[i].begin(), muTimesList[i].end(), 0.0) / float(muTimesList[i].size()));
+		rwavgValues.push_back(std::accumulate(rwTimesList[i].begin(), rwTimesList[i].end(), 0.0) / float(rwTimesList[i].size()));
 	}
+
 	std::cout << "Mutex:" << std::endl;
-	std::cout << "1  sub avg range: " << *std::min_element(muavgs1.begin(), muavgs1.end()) << " - " << *std::max_element(muavgs1.begin(), muavgs1.end()) << std::endl;
-	std::cout << "3  sub avg range: " << *std::min_element(muavgs3.begin(), muavgs3.end()) << " - " << *std::max_element(muavgs3.begin(), muavgs3.end()) << std::endl;
-	std::cout << "5  sub avg range: " << *std::min_element(muavgs5.begin(), muavgs5.end()) << " - " << *std::max_element(muavgs5.begin(), muavgs5.end()) << std::endl;
-	std::cout << "10 sub avg range: " << *std::min_element(muavgs10.begin(), muavgs10.end()) << " - " << *std::max_element(muavgs10.begin(), muavgs10.end()) << std::endl << std::endl;
-	std::cout << "Rw-lock:" << std::endl;
-	std::cout << "1  sub avg range: " << *std::min_element(rwavgs1.begin(), rwavgs1.end()) << " - " << *std::max_element(rwavgs1.begin(), rwavgs1.end()) << std::endl;
-	std::cout << "3  sub avg range: " << *std::min_element(rwavgs3.begin(), rwavgs3.end()) << " - " << *std::max_element(rwavgs3.begin(), rwavgs3.end()) << std::endl;
-	std::cout << "5  sub avg range: " << *std::min_element(rwavgs5.begin(), rwavgs5.end()) << " - " << *std::max_element(rwavgs5.begin(), rwavgs5.end()) << std::endl;
-	std::cout << "10 sub avg range: " << *std::min_element(rwavgs10.begin(), rwavgs10.end()) << " - " << *std::max_element(rwavgs10.begin(), rwavgs10.end()) << std::endl;
-	return 0;
+
+	int subNum[] = { 1,3,5,10,20 };
+	// print avgs and calulate standard deviations 
+	for (int i = 0; i < muavgValues.size(); i++){
+		std::cout << "Subs:" << subNum[i] << std::endl;
+		std::cout << "avg: " << muavgValues[i] << "microseconds" << std::endl;
+		float diviation = 0;
+		for (int j = 0; j < muTimesList.size(); j++){
+			diviation += (muTimesList[i][j] - muavgValues[i]) * (muTimesList[i][j] - muavgValues[i]);
+		}
+		std::cout << "standard diviation: " << sqrt(diviation) << std::endl << std::endl ;
+	}
+
+	std::cout << "rw-lock" << std::endl;
+	for (int i = 0; i < rwavgValues.size(); i++) {
+		std::cout << "Subs:" << subNum[i] << std::endl;
+		std::cout << "avg: " << rwavgValues[i] << "microseconds" << std::endl;
+		float diviation = 0;
+		for (int j = 0; j < rwTimesList.size(); j++) {
+			diviation += (rwTimesList[i][j] - rwavgValues[i]) * (rwTimesList[i][j] - rwavgValues[i]);
+		}
+		std::cout << "standard diviation: " << sqrt(diviation) << std::endl << std::endl;
+	}
+	*/
+	if (!SetPriorityClass(hProcess, NORMAL_PRIORITY_CLASS)) {
+		std::cerr << "Failed to set process priority back to Normal." << std::endl;
+		return 1;
+	}
+
+return 0;
 }
 
 std::vector<TestCaseZeroCopy> createTestCasesZeroCopy()
@@ -287,10 +390,11 @@ std::vector<TestCaseCopy> createTestCasesCopy()
 	auto testCases = std::vector<TestCaseCopy>();
 
 	// 100 Byte payload
-	testCases.push_back(TestCaseCopy(1, 1, 100000, 1));
-	testCases.push_back(TestCaseCopy(3, 1, 100000, 1));
-	testCases.push_back(TestCaseCopy(5, 1, 100000, 1));
-	testCases.push_back(TestCaseCopy(10, 1, 100000, 1));
+	testCases.push_back(TestCaseCopy(1, 1, 5000, 1));
+	testCases.push_back(TestCaseCopy(3, 1, 5000, 1));
+	testCases.push_back(TestCaseCopy(5, 1, 5000, 1));
+	testCases.push_back(TestCaseCopy(10, 1, 5000, 1));
+	testCases.push_back(TestCaseCopy(20, 1, 5000, 1));
 
 	// 1 Kb
 	//testCases.push_back(TestCaseCopy(1, 1, 10, 1000));
@@ -327,7 +431,7 @@ void saveTestResults(shm::Test_pb& data, std::string fileName)
 void runTests(std::string fileName, eCAL::CMemoryFile::lock_type lock_type) 
 {
 	//create test cases
-	std::vector<TestCaseZeroCopy> testCasesZeroCopy = createTestCasesZeroCopy();
+	//std::vector<TestCaseZeroCopy> testCasesZeroCopy = createTestCasesZeroCopy();
 	std::vector<TestCaseCopy> testCasesCopy = createTestCasesCopy();
 
 	//run tests
@@ -397,37 +501,39 @@ std::vector<long long> getItrationTimes(std::vector<std::vector<long long>> subT
 	}
 	return iterationTimes;
 }
-#include <numeric>
-#include <algorithm>
 
-void printRateTestMetrics(std::vector<TestCaseCopy> rateTests)
+
+void printRateTestMetrics(std::vector<TestCaseCopy> testCases)
 {
-	
-	for (int i = 0; i < rateTests.size(); i++) {
+	for (int i = 0; i < testCases.size(); i++) {
+		rateTest nextRateTest;
 		std::vector<long long> totalTimes;
-		std::cout << "subscriber: " << rateTests[i].getSubCount() << std::endl << std::endl;
-		std::vector<std::vector<long long>> subStart = rateTests[i].getSubBeforeAccess();
-		std::vector<std::vector<long long>> subEnd = rateTests[i].getSubAfterRelease();
-		for (int j = 0; j < rateTests[i].getMsgCount(); j++) {
-			long long pubTime = rateTests[i].getPubAfterRelease()[j] - rateTests[i].getPubBeforeAccess()[j];
+		std::vector<std::vector<long long>> subStart = testCases[i].getSubBeforeAccess();
+		std::vector<std::vector<long long>> subEnd = testCases[i].getSubAfterRelease();
+		for (int j = 0; j < testCases[i].getMsgCount(); j++) {
+			long long pubTime = testCases[i].getPubAfterRelease()[j] - testCases[i].getPubBeforeAccess()[j];
 			std::vector<long long> subStartIterationTimes = getItrationTimes(subStart, j);
 			std::vector<long long> subEndIterationTimes = getItrationTimes(subEnd, j);
 
 			long long subTime = *std::max_element(subEndIterationTimes.begin(), subEndIterationTimes.end()) - *std::min_element(subStartIterationTimes.begin(), subStartIterationTimes.end());
 			totalTimes.push_back(pubTime + subTime);
 		}
+		nextRateTest.times = totalTimes;
 		long long max = *std::max_element(totalTimes.begin(), totalTimes.end());
-		float avg = std::accumulate(totalTimes.begin(), totalTimes.end(), 0LL) / float(rateTests[i].getMsgCount());
-		std::cout << "avg: " << avg << std::endl;
-		std::cout << "max: " << max << std::endl << std::endl;
+		long long min = *std::min_element(totalTimes.begin(), totalTimes.end());
+		float avg = std::accumulate(totalTimes.begin(), totalTimes.end(), 0LL) / float(testCases[i].getMsgCount());
+
 		if (rwLock == false) {
-			muavgs.push_back(avg);
-			mumaxs.push_back(max);
+			nextRateTest.type = eCAL::CMemoryFile::lock_type::mutex;
 		}
 		else {
-			rwavgs.push_back(avg);
-			rwmaxs.push_back(max);
+			nextRateTest.type = eCAL::CMemoryFile::lock_type::rw_lock;
 		}
+		nextRateTest.avgTime = avg;
+		nextRateTest.maxTime = max;
+		nextRateTest.minTime = min;
+		nextRateTest.subCount = testCases[i].getSubCount();
+		rateTests.push_back(nextRateTest);
 	}
 }
 
@@ -435,12 +541,12 @@ void printRateTestMetrics(std::vector<TestCaseCopy> rateTests)
 
 void runTestsCopy(std::vector<TestCaseCopy>& testCases, std::string fileName, eCAL::CMemoryFile::lock_type lock_type)
 {
-	std::cout << "run test copy" << std::endl << std::endl;
+	//std::cout << "run test copy" << std::endl << std::endl;
 
 	for (int i = 0; i < testCases.size(); i++) {
 		TestCaseCopy& testCase = testCases[i];
 
-		std::cout << "Test " << i + 1 << " in progress..." << std::endl;
+		//std::cout << "Test " << i + 1 << " in progress..." << std::endl;
 
 		//needed for reader writer coordination
 		totalReaderCount = testCase.getSubCount();
@@ -462,7 +568,7 @@ void runTestsCopy(std::vector<TestCaseCopy>& testCases, std::string fileName, eC
 		for (int i = 0; i < workers.size(); i++) {
 			workers[i].join();
 		}
-		std::cout << "test completed" << std::endl << std::endl;
+		//std::cout << "test completed" << std::endl << std::endl;
 		//testCase.calculateMetrics();
 		writerDoneCount = 0;
 	}
