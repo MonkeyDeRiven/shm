@@ -49,7 +49,7 @@ shm::TestCaseZeroCopy_pb TestCaseZeroCopy::getPbTestCaseMessage(bool rawData)
 	metrics->set_avgpublatency(this->avgPubLatency);
 	metrics->set_maxpublatency(this->maxPubLatency);
 	metrics->set_minpublatency(this->minPubLatency);
-
+	/*
 	for (int i = 0; i < this->subLatencies.size(); i++) {
 		metrics->add_avgsublatencies(this->avgSubLatencies[i]);
 	}
@@ -61,7 +61,7 @@ shm::TestCaseZeroCopy_pb TestCaseZeroCopy::getPbTestCaseMessage(bool rawData)
 	for (int i = 0; i < minSubLatencies.size(); i++) {
 		metrics->add_minsublatencies(this->minSubLatencies[i]);
 	}
-
+	*/
 	if (rawData) {
 		auto raw = message.mutable_raw();
 

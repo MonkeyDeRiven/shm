@@ -57,10 +57,10 @@ std::mutex readerWriterLock;
 
 //reader writer coordination
 std::mutex readerDoneLock;
-int readerDoneCount = 0;
-int writerDoneCount = 0;
-int totalReaderCount = 0;
-bool contentAvailable = false;
+std::atomic<int> readerDoneCount(0);
+std::atomic<int> writerDoneCount(0);
+std::atomic<int> totalReaderCount(0);
+std::atomic<bool> contentAvailable(false);
 
 void readerDone()
 {
@@ -76,16 +76,21 @@ void readerDone()
 int main()
 {
 	std::string testResultFileName = "eCAL_base_lock_test";
+	
+	if (SetPriorityClass(GetCurrentProcess(), REALTIME_PRIORITY_CLASS)) 
+	{
+		std::cout << "This Process is running with realtime priority now!" << std::endl << std::endl;
+	};
 
-	for (int i = 0; i < 7; i++) {
-		//run tests with mutex lock
-		runTests(testResultFileName + std::to_string(i), eCAL::CMemoryFile::lock_type::mutex);
+	//run tests with mutex lock
+	runTests(testResultFileName, eCAL::CMemoryFile::lock_type::mutex);
 
-		testResultFileName = "thesis_rw_lock_non_recoverable_test";
+	testResultFileName = "thesis_rw_lock_non_recoverable_test";
 
-		//run tests with rw lock
-		runTests(testResultFileName + std::to_string(i), eCAL::CMemoryFile::lock_type::rw_lock);
-	}
+	//run tests with rw lock
+	runTests(testResultFileName, eCAL::CMemoryFile::lock_type::rw_lock);
+
+	SetPriorityClass(GetCurrentProcess(), NORMAL_PRIORITY_CLASS);
 
 	return 0;
 }
@@ -95,22 +100,28 @@ std::vector<TestCaseZeroCopy> createTestCasesZeroCopy()
 	auto testCases = std::vector<TestCaseZeroCopy>();
 
 	// 1ms calculation time
-	testCases.push_back(TestCaseZeroCopy(1, 1, 1000, 10));
-	testCases.push_back(TestCaseZeroCopy(3, 1, 1000, 10));
-	testCases.push_back(TestCaseZeroCopy(5, 1, 1000, 10));
-	testCases.push_back(TestCaseZeroCopy(10, 1, 1000, 10));
-
+	
+	testCases.push_back(TestCaseZeroCopy(1, 1, 100, 1));
+	testCases.push_back(TestCaseZeroCopy(3, 1, 100, 1));
+	testCases.push_back(TestCaseZeroCopy(5, 1, 100, 1));
+	testCases.push_back(TestCaseZeroCopy(10, 1, 100, 1));
+	testCases.push_back(TestCaseZeroCopy(20, 1, 100, 1));
+	
 	// 10ms calculation time
-	testCases.push_back(TestCaseZeroCopy(1, 1, 1000, 30));
-	testCases.push_back(TestCaseZeroCopy(3, 1, 1000, 30));
-	testCases.push_back(TestCaseZeroCopy(5, 1, 1000, 30));
-	testCases.push_back(TestCaseZeroCopy(10, 1, 1000, 30));
-
+	
+	testCases.push_back(TestCaseZeroCopy(1, 1, 100, 100));
+	testCases.push_back(TestCaseZeroCopy(3, 1, 100, 100));
+	testCases.push_back(TestCaseZeroCopy(5, 1, 100, 100));
+	testCases.push_back(TestCaseZeroCopy(10, 1, 100, 100));
+	testCases.push_back(TestCaseZeroCopy(20, 1, 100, 100));
+	
 	// 100ms calculation time
-	testCases.push_back(TestCaseZeroCopy(1, 1, 1000, 50));
-	testCases.push_back(TestCaseZeroCopy(3, 1, 1000, 50));
-	testCases.push_back(TestCaseZeroCopy(5, 1, 1000, 50));
-	testCases.push_back(TestCaseZeroCopy(10, 1, 1000, 50));
+	//testCases.push_back(TestCaseZeroCopy(1, 1, 1000, 50));
+	//testCases.push_back(TestCaseZeroCopy(3, 1, 1000, 50));
+	//testCases.push_back(TestCaseZeroCopy(5, 1, 1000, 50));
+	//testCases.push_back(TestCaseZeroCopy(10, 1, 1000, 50));
+	//testCases.push_back(TestCaseZeroCopy(20, 1, 1000, 10));
+	//testCases.push_back(TestCaseZeroCopy(50, 1, 1000, 10));
 
 	return testCases;
 }
@@ -119,24 +130,36 @@ std::vector<TestCaseCopy> createTestCasesCopy()
 {
 	auto testCases = std::vector<TestCaseCopy>();
 
-	// 100 Byte payload
-	testCases.push_back(TestCaseCopy(1, 1, 10000, 100));
-	testCases.push_back(TestCaseCopy(3, 1, 10000, 100));
-	testCases.push_back(TestCaseCopy(5, 1, 10000, 100));
-	testCases.push_back(TestCaseCopy(10, 1, 10000, 100));
+	// 10 Byte 
+	
+	testCases.push_back(TestCaseCopy(1, 1, 1000, 10));
+	testCases.push_back(TestCaseCopy(3, 1, 1000, 10));
+	testCases.push_back(TestCaseCopy(5, 1, 1000, 10));
+	testCases.push_back(TestCaseCopy(10, 1, 1000, 10));
+	testCases.push_back(TestCaseCopy(20, 1, 1000, 10));
 
-	// 1 Kb
-	testCases.push_back(TestCaseCopy(1, 1, 10000, 10000));
-	testCases.push_back(TestCaseCopy(3, 1, 10000, 10000));
-	testCases.push_back(TestCaseCopy(5, 1, 10000, 10000));
-	testCases.push_back(TestCaseCopy(10, 1, 10000, 10000));
+	// 1 KB
+	
+	testCases.push_back(TestCaseCopy(1, 1, 1000, 1000));
+	testCases.push_back(TestCaseCopy(3, 1, 1000, 1000));
+	testCases.push_back(TestCaseCopy(5, 1, 1000, 1000));
+	testCases.push_back(TestCaseCopy(10, 1, 1000, 1000));
+	testCases.push_back(TestCaseCopy(20, 1, 1000, 1000));
+	
+	// 1 MB
+	testCases.push_back(TestCaseCopy(1, 1, 1000, 1000000));
+	testCases.push_back(TestCaseCopy(3, 1, 1000, 1000000));
+	testCases.push_back(TestCaseCopy(5, 1, 1000, 1000000));
+	testCases.push_back(TestCaseCopy(10, 1, 1000, 1000000));
+	testCases.push_back(TestCaseCopy(20, 1, 1000, 1000000));
 
-	// 1 Mb
-	testCases.push_back(TestCaseCopy(1, 1, 10000, 1000000));
-	testCases.push_back(TestCaseCopy(3, 1, 10000, 1000000));
-	testCases.push_back(TestCaseCopy(5, 1, 10000, 1000000));
-	testCases.push_back(TestCaseCopy(10, 1, 10000, 1000000));
-
+	// 50MB
+	testCases.push_back(TestCaseCopy(1, 1, 1000, 50000000));
+	testCases.push_back(TestCaseCopy(3, 1, 1000, 50000000));
+	testCases.push_back(TestCaseCopy(5, 1, 1000, 50000000));
+	testCases.push_back(TestCaseCopy(10, 1, 1000, 50000000));
+	testCases.push_back(TestCaseCopy(20, 1, 1000, 50000000));
+	
 	return testCases;
 }
 
@@ -170,10 +193,10 @@ void runTests(std::string fileName, eCAL::CMemoryFile::lock_type lock_type)
 	// create results protobuf message for test
 	shm::Test_pb message;
 	for (int i = 0; i < testCasesZeroCopy.size(); i++) {
-		*message.add_zerocopycases() = testCasesZeroCopy[i].getPbTestCaseMessage(false);
+		*message.add_zerocopycases() = testCasesZeroCopy[i].getPbTestCaseMessage(true);
 	}
 	for (int i = 0; i < testCasesCopy.size(); i++) {
-		*message.add_copycases() = testCasesCopy[i].getPbTestCaseMessage(false);
+		*message.add_copycases() = testCasesCopy[i].getPbTestCaseMessage(true);
 	}
 
 	// save test results
@@ -204,13 +227,13 @@ void runTestsZeroCopy(std::vector<TestCaseZeroCopy>& testCases, std::string file
 		threadHandles.push_back(createWriter(testCase, memoryFile));
 
 		// create reader and push it to the thread handle vector
-		for (int i = 0; i < testCase.getSubCount(); i++) {
-			threadHandles.push_back(createReader(testCase, memoryFile, i));
+		for (int j = 0; j < testCase.getSubCount(); j++) {
+			threadHandles.push_back(createReader(testCase, memoryFile, j));
 		}
 
 		// wait for test to finish
-		for (int i = 0; i < threadHandles.size(); i++) {
-			threadHandles[i].join();
+		for (int j = 0; j < threadHandles.size(); j++) {
+			threadHandles[j].join();
 		}
 
 		std::cout << "test completed" << std::endl << std::endl;
@@ -244,13 +267,13 @@ void runTestsCopy(std::vector<TestCaseCopy>& testCases, std::string fileName, eC
 		workers.push_back(createWriter(testCase, memoryFile));
 
 		//add readers
-		for (int i = 0; i < testCase.getSubCount(); i++) {
-			workers.push_back(createReader(testCase, memoryFile, i));
+		for (int j = 0; j < testCase.getSubCount(); j++) {
+			workers.push_back(createReader(testCase, memoryFile, j));
 		}
 
 		//wait for test to finish
-		for (int i = 0; i < workers.size(); i++) {
-			workers[i].join();
+		for (int j = 0; j < workers.size(); j++) {
+			workers[j].join();
 		}
 		std::cout << "test completed" << std::endl << std::endl;
 		testCase.calculateMetrics();
@@ -301,9 +324,9 @@ void writerTask(TestCase& testCase, eCAL::CMemoryFile& memoryFile)
 
 			//process taken time while readers can read
 			if (i >= WARMUP) {
-				testCase.pushToPubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count());
-				testCase.pushToPubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count());
-				testCase.pushToPubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count());
+				testCase.pushToPubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::microseconds>(beforeAccess).count());
+				testCase.pushToPubAfterAccessTimes(std::chrono::duration_cast<std::chrono::microseconds>(afterAccess).count());
+				testCase.pushToPubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::microseconds>(afterRelease).count());
 			}
 			readerWriterSync.wait(w_lock, [] { return !contentAvailable; });
 		}
@@ -332,9 +355,9 @@ void readerTaskZeroCopy(TestCaseZeroCopy& testCase, eCAL::CMemoryFile& memoryFil
 		afterRelease = std::chrono::steady_clock::now().time_since_epoch();
 		readerDone();
 		if (i >= WARMUP) {
-			testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count(), timesIndex);
-			testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count(), timesIndex);
-			testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count(), timesIndex);
+			testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::microseconds>(beforeAccess).count(), timesIndex);
+			testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::microseconds>(afterAccess).count(), timesIndex);
+			testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::microseconds>(afterRelease).count(), timesIndex);
 		}
 	}
 }
@@ -365,9 +388,9 @@ void readerTaskCopy(TestCaseCopy& testCase, eCAL::CMemoryFile& memoryFile, int t
 		readerDone();
 
 		if (i >= WARMUP) {
-			testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(beforeAccess).count(), timesIndex);
-			testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterAccess).count(), timesIndex);
-			testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::milliseconds>(afterRelease).count(), timesIndex);
+			testCase.pushToSubBeforeAccessTimes(std::chrono::duration_cast<std::chrono::microseconds>(beforeAccess).count(), timesIndex);
+			testCase.pushToSubAfterAccessTimes(std::chrono::duration_cast<std::chrono::microseconds>(afterAccess).count(), timesIndex);
+			testCase.pushToSubAfterReleaseTimes(std::chrono::duration_cast<std::chrono::microseconds>(afterRelease).count(), timesIndex);
 		}
 	}
 }
